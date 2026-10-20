@@ -1,0 +1,9 @@
+# 根目录：start.ps1 / stop.ps1 与手工启动产生的运行时日志，不入库
+*.log
+
+# 本机部署产生的临时验证文件
+tmp-*.json
+*-out.json
+
+# 子项目各自的忽略规则见 llmops-backend/.gitignore 与 llmops-frontend/.gitignore
+# （.env / .venv / chroma_db / node_modules / dist 均在各自文件里已忽略）

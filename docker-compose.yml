@@ -1,0 +1,70 @@
+services:
+  mysql:
+    build: ./mysql-init
+    image: llmops-mysql:local
+    container_name: llmops-mysql
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      # 只在这里出现一次：backend 连库用的就是 root 账号，两处必须一致
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:?缺少 MYSQL_PASSWORD，请先复制 .env.example 为 .env 并填写}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    # 故意不映射 3306 端口：backend 走 compose 内部网络即可，
+    # 避免和宿主机已安装的 MySQL 抢端口
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 45s
+
+  backend:
+    build: ./llmops-backend
+    container_name: llmops-backend
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: llmops_db
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_EMBEDDING_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-deepseek-r1:7b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-bge-m3}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-ollama}
+      SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-demo2026}
+      # 这两个必须显式列在这里才会进容器：compose 只转发本文件里引用到的变量，
+      # 写在 .env 里但没在这里声明的键，backend 的 Settings 读不到。
+      RAG_SCORE_THRESHOLD: ${RAG_SCORE_THRESHOLD:-0.53}
+      MEMORY_MAX_TURNS: ${MEMORY_MAX_TURNS:-10}
+    volumes:
+      # 向量库持久化。镜像里 .dockerignore 排除了 chroma_db，容器重启不丢数据靠这个卷
+      - chroma_data:/app/chroma_db
+    ports:
+      # 映射出来只为方便直接调 API 做部署自检；正式访问走前端 nginx 的 /api 反代
+      - "8000:8000"
+    extra_hosts:
+      # Linux 部署时 host.docker.internal 不是自带的，这一行让它可用
+      - host.docker.internal:host-gateway
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build: ./llmops-frontend
+    container_name: llmops-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  chroma_data:

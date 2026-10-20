@@ -1,0 +1,35 @@
+3先写数据库，再写后端，再写前端。
+MySQL 表
+↓
+FastAPI 配置
+↓
+SQLAlchemy 模型
+↓
+Ollama 服务
+↓
+OpenAI 服务
+↓
+统一 LLMService
+↓
+ChatService
+↓
+API 接口
+↓
+Vue3
+-----------------------
+项目主链路
+用户输入
+↓
+Vue3
+↓
+FastAPI /api/chat
+↓
+ChatService
+↓
+选择模型
+├── Ollama → deepseek-r1:7b
+└── OpenAI → ChatGPT Key
+↓
+写入 MySQL 日志
+↓
+返回前端
