@@ -76,9 +76,13 @@ export interface ChatResponse {
   total_tokens: number
   latency_ms: number
   conversation_id: string | null
-  rag_status: 'off' | 'no_hit' | 'hit'
+  rag_status: RagStatus
   sources: Source[]
 }
+
+/** RAG 判定四态：off=未启用，no_hit=启用但无过阈值片段，
+ *  weak_hit=top1 仅勉强过阈值（不可当可靠依据），hit=正常命中 */
+export type RagStatus = 'off' | 'no_hit' | 'weak_hit' | 'hit'
 
 /** 会话（对应 Conversation） */
 export interface Conversation {

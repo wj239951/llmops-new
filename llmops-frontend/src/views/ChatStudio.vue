@@ -127,7 +127,14 @@ style="margin-top: 10px"
     type="warning"
     :closable="false"
   />
-  <template v-else-if="ragStatus === 'hit'">
+  <template v-else-if="ragStatus === 'hit' || ragStatus === 'weak_hit'">
+    <el-alert
+      v-if="ragStatus === 'weak_hit'"
+      title="弱命中：top1 相关度只是勉强过阈值，以下来源可能不构成可靠依据"
+      type="warning"
+      :closable="false"
+      style="margin-bottom: 8px"
+    />
     <el-button text type="primary" size="small" @click="sourcesExpanded = !sourcesExpanded">
       {{ sourcesExpanded ? '收起' : '展开' }} {{ sources.length }} 个参考来源
     </el-button>
@@ -147,7 +154,7 @@ style="margin-top: 10px"
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import type { ChatMessage, ChatRequestPayload, Conversation, Prompt, Source } from '../types'
+import type { ChatMessage, ChatRequestPayload, Conversation, Prompt, RagStatus, Source } from '../types'
 import { sendChat } from '../api/chat'
 import { listPrompts } from '../api/prompt'
 import { listConversations, createConversation, getMessages, deleteConversation } from '../api/conversations'
@@ -160,7 +167,7 @@ const meta = ref('')
 const thought = ref('')
 const sources = ref<Source[]>([])
 const sourcesExpanded = ref(false)
-const ragStatus = ref<'off' | 'no_hit' | 'hit'>('off')
+const ragStatus = ref<RagStatus>('off')
 const prompts = ref<Prompt[]>([])
 const conversations = ref<Conversation[]>([])
 const messages = ref<ChatMessage[]>([])

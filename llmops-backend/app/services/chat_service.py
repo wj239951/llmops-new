@@ -104,18 +104,25 @@ class ChatService:
         rag_status = "off"
 
         if req.use_rag:
+            # search() 内部已完成「取宽候选 → 按阈值过滤 → 截断」，此处不再重复过滤
             rag_docs = self.rag.search(db, req.query)
-            # 命中阈值：cosine >= settings.RAG_SCORE_THRESHOLD 才保留（search 返回的 score 已是 cosine，越大越相关）
-            rag_docs = [d for d in rag_docs if d.score >= settings.RAG_SCORE_THRESHOLD]
             context = self.rag.build_context(rag_docs)
             if context:
-                rag_status = "hit"
+                top1 = rag_docs[0].score
+                # 闸门勉强过线时标成 weak_hit，不让前端把它当成可靠依据
+                rag_status = (
+                    "hit" if top1 >= settings.RAG_SCORE_THRESHOLD + settings.RAG_WEAK_MARGIN
+                    else "weak_hit"
+                )
                 final_query = (
                     "请基于以下知识库内容回答问题。\n"
                     "如果知识库内容不足，请说明不足，再结合通用知识补充。\n\n"
                     f"{context}\n\n用户问题：{req.query}"
                 )
-                workflow_reasoning.append(f"步骤5：启用 RAG，检索到 {len(rag_docs)} 条知识片段。")
+                workflow_reasoning.append(
+                    f"步骤5：启用 RAG，检索到 {len(rag_docs)} 条知识片段"
+                    f"（top1 cosine={top1:.4f}，判定 {rag_status}）。"
+                )
             else:
                 rag_status = "no_hit"
                 workflow_reasoning.append("步骤5：启用 RAG，但未检索到有效知识片段（本次回答不含知识库内容）。")

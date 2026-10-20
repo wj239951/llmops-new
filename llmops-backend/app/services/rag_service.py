@@ -138,10 +138,17 @@ class RAGService:
     #     scored.sort(key=lambda x: x[0], reverse=True)
     #     return [doc for _, doc in scored[:limit]]
     # search() 换成带分数的检索
-    def search(self, db: Session, query: str, limit: int = 3):
+    def search(self, db: Session, query: str, limit: int | None = None):
+        """检索并按阈值过滤，返回最终要喂给模型的片段。
+
+        过滤收在这一层而不是调用方，是为了先取宽候选再截断：
+        原先 k=3 直接截断，排在第 4 位之后的正确片段永远进不了候选集。
+        """
         if not query.strip():
             return []
-        results = vectorstore.similarity_search_with_score(query, k=limit)
+        feed_topk = limit if limit is not None else settings.RAG_FEED_TOPK
+        k = max(feed_topk, settings.RAG_CANDIDATE_K)
+        results = vectorstore.similarity_search_with_score(query, k=k)
         chunks = []
         for r, score in results:
             doc = self._convert_to_knowledge_doc(db, r)
@@ -158,7 +165,9 @@ class RAGService:
                 title=doc.title, content=r.page_content, source=doc.source,
                 score=float(1.0 - score),  # distance → cosine：越大越相关，方便直接跟阈值比
             ))
-        return chunks
+        # cosine 已按 distance 升序，过滤后取前 feed_topk 条
+        passed = [c for c in chunks if c.score >= settings.RAG_SCORE_THRESHOLD]
+        return passed[:feed_topk]
 
     def build_context(self, docs):
         return "\n\n".join(
