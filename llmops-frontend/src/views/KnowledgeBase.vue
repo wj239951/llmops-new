@@ -12,6 +12,7 @@ RAG知识库中心
     <div class="card">
       <h3>文件上传</h3>
       <el-upload
+        ref="uploadRef"
         :auto-upload="false"
         :on-change="handleFileChange"
         :limit="1"
@@ -48,11 +49,12 @@ RAG知识库中心
 import { onMounted, reactive, ref } from 'vue'
 import type { KnowledgeDocument } from '../types'
 import { createKnowledge, listKnowledge, updateKnowledge, deleteKnowledge, uploadKnowledge } from '../api/knowledge'
-import { ElMessage, type UploadFile } from 'element-plus'
+import { ElMessage, ElMessageBox, type UploadFile, type UploadInstance } from 'element-plus'
 
 const rows = ref<KnowledgeDocument[]>([])
 const KnowledgeId = ref<number | null>(null) // 正在编辑的知识库ID
 const selectedFile = ref<File | null>(null)
+const uploadRef = ref<UploadInstance>()
 const form = reactive({
   title: 'LLMOps 说明',
   content: 'Prompt 管理、RAG、模型调用、日志监控、工具调用是工业 LLMOps 的核心能力。本地版使用Ollama 调用 deepseek-R1:7b，云端使用 DeepSeek API。'
@@ -68,6 +70,7 @@ async function upload() {
     await uploadKnowledge(selectedFile.value)
     ElMessage.success('文件上传成功')
     selectedFile.value = null
+    uploadRef.value?.clearFiles()
     await load()
   } catch {
     // 错误提示已由 request.ts 的响应拦截器统一处理
@@ -90,6 +93,15 @@ async function editRow(row: KnowledgeDocument) {
   form.content = row.content
 }
 async function deleteRow(row: KnowledgeDocument) {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除文档「${row.title}」吗？删除后不可恢复。`,
+      '删除确认',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch {
+    return // 用户取消删除
+  }
   await deleteKnowledge(row.id)
   await load()
 }

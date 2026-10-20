@@ -197,7 +197,10 @@ class RAGService:
         return doc
 
     def delete_document(self, db, knowledge_id):
-        db.query(KnowledgeDocument).filter(KnowledgeDocument.id == knowledge_id).delete()
+        doc = db.query(KnowledgeDocument).filter(KnowledgeDocument.id == knowledge_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail=f"知识库文档不存在，ID: {knowledge_id}")
+        db.delete(doc)
         db.commit()
         vectorstore._collection.delete(where={"id": knowledge_id})
         return {"message": "知识库文档删除成功"}
