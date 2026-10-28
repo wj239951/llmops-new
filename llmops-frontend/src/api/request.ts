@@ -26,6 +26,12 @@ request.interceptors.response.use(
     if (axios.isCancel(error)) {
       return Promise.reject(error)
     }
+    // 口令失效（比如服务器换过口令、本地还存着旧 token）：清掉回门禁页重来
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      location.reload()
+      return Promise.reject(error)
+    }
     const detail = error.response?.data?.detail || error.message || '请求失败'
     ElMessage.error(detail)
     return Promise.reject(error)

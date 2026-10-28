@@ -15,7 +15,7 @@ Token统计
 
     <div class="card">
       <el-alert
-        title="默认走本地 Ollama + deepseek-r1:7b；选择 DeepSeek 时走 DeepSeek 云端 API。"
+        title="默认走 DeepSeek 云端 API；部署环境有本地 Ollama 时可切本地通道。"
         type="info"
         show-icon
       />
@@ -174,8 +174,8 @@ const messages = ref<ChatMessage[]>([])
 const form = reactive({
   query: '请介绍一下你自己',
   prompt_id: undefined as number | undefined,
-  model_provider: 'ollama',
-  model_name: 'deepseek-r1:7b',
+  model_provider: 'deepseek',
+  model_name: 'deepseek-chat',
   use_rag: true,
   memory_enabled: true,
   conversation_id: ''
@@ -183,12 +183,12 @@ const form = reactive({
 const modelOptions = computed(() =>
   form.model_provider === 'ollama'
     ? ['deepseek-r1:7b']
-    : ['deepseek-chat', 'deepseek-v4-pro', 'deepseek-flash']
+    : ['deepseek-chat', 'deepseek-reasoner']
 )
 watch(
     () => form.model_provider,
     (value) => {
-      form.model_name = value === 'ollama' ? 'deepseek-r1:7b' : 'deepseek-v4-pro'
+      form.model_name = value === 'ollama' ? 'deepseek-r1:7b' : 'deepseek-chat'
     }
 )
 async function loadPrompts() {prompts.value = await listPrompts()

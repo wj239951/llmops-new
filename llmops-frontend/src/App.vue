@@ -31,18 +31,25 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-// 演示口令（写死，改成你的口令即可）
-const DEMO_PASSWORD = 'demo2026'
+// 口令不写死在前端包里：拿用户输入真发一次请求问后端，200 才放行
 // 有 token 即视为已解锁；token 同时随请求发往后端做鉴权
 const authed = ref(!!localStorage.getItem('token'))
 const pwd = ref('')
 const err = ref(false)
 
-function unlock() {
-  if (pwd.value === DEMO_PASSWORD) {
-    localStorage.setItem('token', DEMO_PASSWORD)
-    authed.value = true
-  } else {
+async function unlock() {
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/prompts`, {
+      headers: { Authorization: `Bearer ${pwd.value}` },
+    })
+    if (res.ok) {
+      localStorage.setItem('token', pwd.value)
+      authed.value = true
+    } else {
+      err.value = true
+      pwd.value = ''
+    }
+  } catch {
     err.value = true
     pwd.value = ''
   }
