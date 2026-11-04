@@ -109,9 +109,11 @@ class ChatService:
             context = self.rag.build_context(rag_docs)
             if context:
                 top1 = rag_docs[0].score
+                # 阈值按当前打分方式取：精排 sigmoid 分数 / cosine 分数（见 rag_service）
+                threshold, weak_margin, score_mode = self.rag.active_score_config()
                 # 闸门勉强过线时标成 weak_hit，不让前端把它当成可靠依据
                 rag_status = (
-                    "hit" if top1 >= settings.RAG_SCORE_THRESHOLD + settings.RAG_WEAK_MARGIN
+                    "hit" if top1 >= threshold + weak_margin
                     else "weak_hit"
                 )
                 final_query = (
@@ -121,7 +123,7 @@ class ChatService:
                 )
                 workflow_reasoning.append(
                     f"步骤5：启用 RAG，检索到 {len(rag_docs)} 条知识片段"
-                    f"（top1 cosine={top1:.4f}，判定 {rag_status}）。"
+                    f"（打分={score_mode}，top1={top1:.4f}，判定 {rag_status}）。"
                 )
             else:
                 rag_status = "no_hit"

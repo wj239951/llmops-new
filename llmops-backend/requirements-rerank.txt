@@ -1,0 +1,10 @@
+# 可选依赖：RAG 第二阶段精排（bge-reranker-v2-m3，交叉编码器）。
+#
+# 默认 requirements.txt 故意不装它们：torch 会让镜像从 ~600MB 涨到 ~3GB，
+# 而大多数本地部署用单路 cosine 检索就够。要用精排时再单独装：
+#     .venv\Scripts\python.exe -m pip install -r requirements-rerank.txt
+#
+# 版本下限与标定环境一致：Python 3.14 / Windows CPU 推理。
+torch>=2.9
+transformers>=4.57
+sentencepiece>=0.2

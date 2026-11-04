@@ -139,15 +139,24 @@ class RAGService:
     #     return [doc for _, doc in scored[:limit]]
     # search() 换成带分数的检索
     def search(self, db: Session, query: str, limit: int | None = None):
-        """检索并按阈值过滤，返回最终要喂给模型的片段。
+        """检索：宽召回 →（可选）交叉编码器精排 → 阈值过滤 → 截断。
 
         过滤收在这一层而不是调用方，是为了先取宽候选再截断：
         原先 k=3 直接截断，排在第 4 位之后的正确片段永远进不了候选集。
+
+        精排开启时（RAG_RERANK_ENABLED=true）走两级检索：
+        1) bge-m3 向量召回 RAG_RERANK_CANDIDATE_K 条；
+        2) bge-reranker-v2-m3 对 (query, chunk) 成对重打分，按精排阈值过滤、取 top-k。
+        依赖/权重缺失时自动回退纯 cosine，不影响服务可用性。
         """
         if not query.strip():
             return []
         feed_topk = limit if limit is not None else settings.RAG_FEED_TOPK
-        k = max(feed_topk, settings.RAG_CANDIDATE_K)
+        rerank_enabled = bool(settings.RAG_RERANK_ENABLED)
+        if rerank_enabled:
+            k = max(settings.RAG_RERANK_CANDIDATE_K, feed_topk)
+        else:
+            k = max(feed_topk, settings.RAG_CANDIDATE_K)
         results = vectorstore.similarity_search_with_score(query, k=k)
         chunks = []
         for r, score in results:
@@ -165,9 +174,37 @@ class RAGService:
                 title=doc.title, content=r.page_content, source=doc.source,
                 score=float(1.0 - score),  # distance → cosine：越大越相关，方便直接跟阈值比
             ))
-        # cosine 已按 distance 升序，过滤后取前 feed_topk 条
+        if rerank_enabled:
+            # 延迟导入：没装 torch/transformers 时不影响服务启动
+            from app.services import rerank_service
+            if rerank_service.is_available():
+                try:
+                    reranked = rerank_service.rerank_chunks(query, chunks)
+                    passed = [
+                        c for c in reranked
+                        if c.score >= settings.RAG_RERANK_SCORE_THRESHOLD
+                    ]
+                    return passed[:feed_topk]
+                except Exception as exc:  # pragma: no cover - 运行时保护
+                    logger.warning("RAG rerank 调用失败，回退 cosine 检索：%s", exc)
+            # is_available() 为 False 时加载失败原因已在 rerank_service 里打过 warning
+        # 纯 cosine 路径（默认）
         passed = [c for c in chunks if c.score >= settings.RAG_SCORE_THRESHOLD]
         return passed[:feed_topk]
+
+    def active_score_config(self) -> tuple[float, float, str]:
+        """search() 之后调用：返回当前生效的（阈值, 弱命中余量, 打分方式）。
+
+        精排模型可用时阈值按精排 sigmoid 分数标定（docs/05），否则按 cosine（docs/04）。
+        """
+        from app.services import rerank_service
+        if settings.RAG_RERANK_ENABLED and rerank_service.is_available():
+            return (
+                settings.RAG_RERANK_SCORE_THRESHOLD,
+                settings.RAG_RERANK_WEAK_MARGIN,
+                "rerank",
+            )
+        return settings.RAG_SCORE_THRESHOLD, settings.RAG_WEAK_MARGIN, "cosine"
 
     def build_context(self, docs):
         return "\n\n".join(

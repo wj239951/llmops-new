@@ -31,6 +31,23 @@ class Settings(BaseSettings):
     # 两组交错，故不存在零误报的余量；0.06（判定线 0.5900）是「拦住全部已知真错」的最小值，
     # 代价是 1 条误报。样本只有 2 条正例，这个数不能当常数——换语料后须重扫。
     RAG_WEAK_MARGIN: float = 0.06
+    # ── 第二阶段精排（bge-reranker-v2-m3，可选）──
+    # 默认关闭：需先 pip install -r requirements-rerank.txt 并准备权重。
+    # 开启后若依赖/权重缺失，RAGService.search 会自动回退纯 cosine 检索并打 warning。
+    RAG_RERANK_ENABLED: bool = False
+    RAG_RERANK_MODEL: str = "BAAI/bge-reranker-v2-m3"
+    # 本地权重目录（HF snapshot 下载目录）；留空则按 RAG_RERANK_MODEL 从 HF 缓存/网络加载
+    RAG_RERANK_MODEL_PATH: str = ""
+    # 进入精排的候选数（bge-m3 召回池）；最终仍只喂 RAG_FEED_TOPK 条。
+    # 45 题上 K=6 已 100% 召回；K=12 质量相同但 CPU 精排耗时约 2.4 倍（实测见 docs/05）
+    RAG_RERANK_CANDIDATE_K: int = 6
+    # 精排分数 = sigmoid(logit)，与 cosine 不同尺度。
+    # 0.76 为 45 题扫描推荐值：8 条无答案全部拒掉，代价 1 条改写题漏答；标定细节与局限见 docs/05
+    RAG_RERANK_SCORE_THRESHOLD: float = 0.76
+    RAG_RERANK_WEAK_MARGIN: float = 0.06
+    RAG_RERANK_MAX_LENGTH: int = 512
+    # auto | cpu | cuda
+    RAG_RERANK_DEVICE: str = "auto"
     # embedding provider 开关:"ollama" | "siliconflow"
     EMBEDDING_PROVIDER: str = "ollama"
     # ollama embedding(本地)
