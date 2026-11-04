@@ -16,3 +16,7 @@ tmp-*.json
 # IDE 配置
 .idea/
 .vscode/
+
+# 本地部署打包产物（部署临时 tar，不入库）
+p4_*.tar.gz
+*.tar.gz
