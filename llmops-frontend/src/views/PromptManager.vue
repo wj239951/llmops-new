@@ -62,9 +62,9 @@
             const modelOptions = computed(() =>
     form.model_provider === 'ollama'
         ? ['deepseek-r1:7b']
-        : ['deepseek-chat', 'deepseek-v4-pro', 'deepseek-flash']
+        : ['deepseek-chat', 'deepseek-reasoner']
 )
-            watch(() => form.model_provider, (value) => { form.model_name = value === 'ollama' ? 'deepseek-r1:7b' : 'deepseek-v4-pro' })
+            watch(() => form.model_provider, (value) => { form.model_name = value === 'ollama' ? 'deepseek-r1:7b' : 'deepseek-chat' })
             async function load() { rows.value = await listPrompts() }
             async function save() { 
                 if (editingId.value) { // 修改

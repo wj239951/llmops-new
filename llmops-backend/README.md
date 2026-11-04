@@ -380,7 +380,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 | `OLLAMA_MODEL` | `deepseek-r1:7b` | 本地对话模型 |
 | `DEEPSEEK_API_KEY` | 空 | DeepSeek Key（不填则只有本地通道） |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | DeepSeek 接口地址 |
-| `DEEPSEEK_MODEL` | `deepseek-v4-pro` | 云端模型；官方通用模型为 `deepseek-chat`、带思考链为 `deepseek-reasoner`，按需在 `.env` 覆盖 |
+| `DEEPSEEK_MODEL` | `deepseek-chat` | 云端模型；官方通用模型为 `deepseek-chat`、带思考链为 `deepseek-reasoner`，按需在 `.env` 覆盖 |
 | `EMBEDDING_PROVIDER` | `ollama` | 向量化通道：`ollama`（本地）/ `siliconflow`（云端，无 Ollama 时用） |
 | `SILICONFLOW_API_KEY` | 空 | 硅基流动 Key（仅 `EMBEDDING_PROVIDER=siliconflow` 时需要） |
 | `SILICONFLOW_EMBEDDING_MODEL` | `BAAI/bge-m3` | 硅基向量化模型，与 Ollama bge-m3 同权重、向量兼容 |
