@@ -1,0 +1,15 @@
+{"id": "h01", "type": "exact_token", "question": "RL-2077 润滑脂用在注塑机的哪个部位？", "expected_doc_ids": [46], "reference_answer": "螺杆传动链条必须使用 RL-2077 润滑脂。", "note": "精确型号命中，向量召回偶发漏召"}
+{"id": "h02", "type": "exact_token", "question": "E-073 这个编号出现在哪台设备的巡检内容里？", "expected_doc_ids": [46], "reference_answer": "注塑机 ZX-2026 巡检手册中的编号项。", "note": "短编号，中文分词容易切碎"}
+{"id": "h03", "type": "exact_token", "question": "GA-90 空压机的排气温度正常范围是多少？", "expected_doc_ids": [47], "reference_answer": "75–95℃。", "note": "型号 + 数值"}
+{"id": "h04", "type": "exact_token", "question": "0.15MPa 压差对应哪台设备？", "expected_doc_ids": [47], "reference_answer": "GA-90 空压机（压差报警值 0.15MPa）。", "note": "带小数点数值"}
+{"id": "h05", "type": "exact_token", "question": "KYN28 高压开关柜要求每几小时巡视一次？", "expected_doc_ids": [48], "reference_answer": "每 2 小时巡视一次。", "note": "型号 + 数字"}
+{"id": "h06", "type": "exact_token", "question": "给水硬度 ≤0.03mmol/L 是哪台锅炉的要求？", "expected_doc_ids": [49], "reference_answer": "WNS2-1.25-Q 燃气锅炉。", "note": "带单位数值"}
+{"id": "h07", "type": "exact_token", "question": "受限空间作业氧含量 19.5%–21% 的判定标准出自哪里？", "expected_doc_ids": [50], "reference_answer": "受限空间作业安全规范。", "note": "区间数值 + 百分号"}
+{"id": "h08", "type": "exact_token", "question": "SX 编号的作业审批票对应什么作业？", "expected_doc_ids": [50], "reference_answer": "受限空间作业票编号（SX 系列）。", "note": "字母前缀编号"}
+{"id": "h09", "type": "exact_token", "question": "危化品储存温度不超过 35℃ 的规定在哪篇？", "expected_doc_ids": [51], "reference_answer": "危化品储存安全管理规定。", "note": "温度阈值"}
+{"id": "h10", "type": "exact_token", "question": "消防水带长度 25m 的点检要求是什么？", "expected_doc_ids": [52], "reference_answer": "消防器材点检中水带长度为 25m。", "note": "长度数值"}
+{"id": "h11", "type": "exact_token", "question": "差旅一线城市住宿标准 400 元的规定在哪篇制度里？", "expected_doc_ids": [53], "reference_answer": "差旅报销制度：一线 400 元/晚。", "note": "金额 + 城市等级"}
+{"id": "h12", "type": "exact_token", "question": "食堂留样 125g、保存 48 小时的要求出自哪篇？", "expected_doc_ids": [54], "reference_answer": "食堂卫生留样管理要求。", "note": "重量 + 时长双数值"}
+{"id": "h13", "type": "exact_token", "question": "CW 编号的车辆管理要求属于哪篇制度？", "expected_doc_ids": [55], "reference_answer": "公务车辆管理制度（CW 编号）。", "note": "字母前缀编号"}
+{"id": "h14", "type": "exact_token", "question": "WNS2-1.25-Q 是什么设备，它的安全阀多久校验一次？", "expected_doc_ids": [49], "reference_answer": "燃气锅炉；安全阀每周校验。", "note": "长型号编号"}
+{"id": "h15", "type": "exact_token", "question": "GA-90 空压机的皮带多少小时需要更换？", "expected_doc_ids": [47], "reference_answer": "6000 小时更换皮带。", "note": "型号 + 时长"}

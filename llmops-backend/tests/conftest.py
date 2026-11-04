@@ -4,6 +4,13 @@
 关键点：在 import app 之前 patch 掉 chromadb.PersistentClient ——
 否则 rag_service 模块在 import 时就会打开真实 Chroma（甚至触发 l2→cosine 重建）。
 """
+import os
+
+# 测试不应该依赖开发机本地 .env（比如开发机上开启了 RAG_RERANK_ENABLED）。
+# pydantic-settings 里环境变量优先级高于 .env，因此在 import app 之前关掉这些可选链路。
+os.environ.setdefault("RAG_RERANK_ENABLED", "false")
+os.environ.setdefault("RAG_HYBRID_ENABLED", "false")
+
 import chromadb
 from unittest.mock import MagicMock, patch
 

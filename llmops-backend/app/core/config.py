@@ -48,6 +48,16 @@ class Settings(BaseSettings):
     RAG_RERANK_MAX_LENGTH: int = 512
     # auto | cpu | cuda
     RAG_RERANK_DEVICE: str = "auto"
+    # ── 混合检索（jieba/BM25 关键词召回 + 向量召回 RRF 融合，可选）──
+    # 默认关闭：向量检索仍是主链路；开启后若 jieba/索引不可用，search 自动回退纯向量。
+    # 关键词通道专治「精确编号 / 型号 / 数字」类查询（RL-2077、E-073、25m…），
+    # 与精排互补：两者可同时开启，顺序为 混合候选 → 精排 → 阈值截断。
+    RAG_HYBRID_ENABLED: bool = False
+    # 稀疏/稠密两路各自召回的候选数（融合后池子不超过两者之和）
+    RAG_HYBRID_DENSE_K: int = 12
+    RAG_HYBRID_SPARSE_K: int = 12
+    # RRF 平滑常数：score = Σ 1/(k + rank)，k 越大越偏向「两路都靠前」
+    RAG_HYBRID_RRF_K: int = 60
     # embedding provider 开关:"ollama" | "siliconflow"
     EMBEDDING_PROVIDER: str = "ollama"
     # ollama embedding(本地)

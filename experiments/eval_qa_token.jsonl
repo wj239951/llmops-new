@@ -1,0 +1,15 @@
+{"id": "t01", "type": "token_query", "question": "RL-2077", "expected_doc_ids": [46], "reference_answer": "注塑机 ZX-2026 螺杆传动链条使用的润滑脂型号", "note": "搜索框式短查询：只输型号"}
+{"id": "t02", "type": "token_query", "question": "E-073", "expected_doc_ids": [46], "reference_answer": "注塑机巡检手册中的 E-073 编号", "note": "搜索框式短查询：只输编号"}
+{"id": "t03", "type": "token_query", "question": "GA-90", "expected_doc_ids": [47], "reference_answer": "空压机 GA-90 型号", "note": "搜索框式短查询：只输型号"}
+{"id": "t04", "type": "token_query", "question": "0.15MPa 压差", "expected_doc_ids": [47], "reference_answer": "空压机压差不超过 0.15MPa", "note": "搜索框式短查询：数字+单位+名词"}
+{"id": "t05", "type": "token_query", "question": "KYN28", "expected_doc_ids": [48], "reference_answer": "高压开关柜 KYN28 型号", "note": "搜索框式短查询：只输型号"}
+{"id": "t06", "type": "token_query", "question": "0.03mmol/L", "expected_doc_ids": [49], "reference_answer": "燃气锅炉给水硬度上限", "note": "搜索框式短查询：只输指标值"}
+{"id": "t07", "type": "token_query", "question": "19.5%–21%", "expected_doc_ids": [50], "reference_answer": "受限空间作业氧含量合格范围", "note": "搜索框式短查询：只输指标区间；dense 召回不到"}
+{"id": "t08", "type": "token_query", "question": "SX 编号", "expected_doc_ids": [50], "reference_answer": "受限空间作业审批票编号", "note": "搜索框式短查询：编号前缀+名词"}
+{"id": "t09", "type": "token_query", "question": "35℃", "expected_doc_ids": [51], "reference_answer": "危化品储存温度上限", "note": "搜索框式短查询：只输温度值"}
+{"id": "t10", "type": "token_query", "question": "25m 水带", "expected_doc_ids": [52], "reference_answer": "消防水带长度规格", "note": "搜索框式短查询：数字+单位+名词；dense 召回不到"}
+{"id": "t11", "type": "token_query", "question": "400 元", "expected_doc_ids": [53], "reference_answer": "一线城市差旅住宿标准", "note": "搜索框式短查询：只输金额"}
+{"id": "t12", "type": "token_query", "question": "125g", "expected_doc_ids": [54], "reference_answer": "食堂留样重量要求", "note": "搜索框式短查询：只输重量"}
+{"id": "t13", "type": "token_query", "question": "CW 编号", "expected_doc_ids": [55], "reference_answer": "公务车辆编号规则", "note": "搜索框式短查询：编号前缀+名词"}
+{"id": "t14", "type": "token_query", "question": "WNS2-1.25-Q", "expected_doc_ids": [49], "reference_answer": "燃气锅炉型号", "note": "搜索框式短查询：只输型号"}
+{"id": "t15", "type": "token_query", "question": "6000h 皮带", "expected_doc_ids": [47], "reference_answer": "空压机皮带更换周期", "note": "搜索框式短查询：时长+部件"}
