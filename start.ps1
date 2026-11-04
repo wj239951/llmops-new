@@ -3,16 +3,29 @@
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $backend  = Join-Path $root "llmops-backend"
 $frontend = Join-Path $root "llmops-frontend"
-$node     = "C:\node-v22.19.0-win-x64\node.exe"
 
 function Test-Port([int]$port) {
     [bool](Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue)
 }
 
+# node 用 PATH 里的版本，不再硬编码安装路径（换机器 / 换 Node 版本都不用改脚本）
+$node = (Get-Command node -ErrorAction SilentlyContinue).Source
+if (-not $node) {
+    $node = @("$env:ProgramFiles\nodejs\node.exe", "${env:ProgramFiles(x86)}\nodejs\node.exe") |
+        Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+if (-not $node) {
+    throw "未找到 node.exe：请安装 Node.js 18+ 并加入 PATH 后重试。"
+}
+
 if (Test-Port 8000) {
     Write-Host "backend  :8000 已在运行，跳过"
 } else {
-    Start-Process -FilePath (Join-Path $backend ".venv\Scripts\uvicorn.exe") `
+    $uvicorn = Join-Path $backend ".venv\Scripts\uvicorn.exe"
+    if (-not (Test-Path $uvicorn)) {
+        throw "缺少 $uvicorn ：请先在 llmops-backend 目录执行 python -m venv .venv 并安装 requirements.txt。"
+    }
+    Start-Process -FilePath $uvicorn `
         -ArgumentList "app.main:app", "--host", "127.0.0.1", "--port", "8000" `
         -WorkingDirectory $backend -WindowStyle Hidden `
         -RedirectStandardOutput (Join-Path $root "backend.log") `

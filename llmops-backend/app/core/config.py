@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "deepseek-r1:7b"
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
-    DEEPSEEK_MODEL: str = "deepseek-v4-pro"
+    DEEPSEEK_MODEL: str = "deepseek-chat"  # 官方模型名只有 deepseek-chat / deepseek-reasoner
     DEMO_PASSWORD: str = "demo2026"  # 演示口令（前后端一致）
     MEMORY_MAX_TURNS: int = 10  # 内存最大轮数
     RAG_SCORE_THRESHOLD: float = 0.53  # RAG分数阈值，由10片测试文档得来

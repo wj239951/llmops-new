@@ -3,7 +3,7 @@
 > 一个可本地部署的一站式 LLMOps 平台：**Prompt 管理 + 知识库 RAG + 多模型对话 + 会话记忆 + 调用日志**。
 > 后端 FastAPI，前端 Vue3 + TypeScript，向量检索 Chroma（bge-m3），元数据 MySQL 8。
 
-`后端 pytest 17 passed` · `前端 vue-tsc 零报错` · `Docker Compose 一键启动` · `支持 Windows 原生部署`
+`后端 pytest 17 passed` · `前端 vue-tsc 零报错` · `RAG 评测 45 题` · `Docker Compose 一键启动` · `支持 Windows 原生部署`
 
 ---
 
@@ -16,7 +16,7 @@
 - **怎么判断「命中了但不可靠」**：top1 只是勉强过线时降级为 `weak_hit`，前端明确告警，而不是假装命中；
 - **怎么保证两套存储不打架**：MySQL 与 Chroma 的写/删同步，孤儿向量会被记录而不是静默吞掉。
 
-阈值、余量、候选池这些数字不是拍出来的，是在本机语料上做阈值扫描标定，并用 12 组实验（换机器、换语料、换阈值）验证过稳定性。相关结论已沉淀为代码里的注释和常量。
+阈值、余量、候选池不是拍出来的数字：仓库内置 45 条评测集与可复现的检索评测脚本（见 [docs/04.评测报告](docs/04.评测报告.md)），基线数字、阈值扫描与局限都写在报告里。
 
 ## 架构
 
@@ -47,7 +47,7 @@
 | 写入 384 维、读取 1024 维 | 直接调 `_collection.add` 会走 chromadb 自带的默认 embedding | 统一走 LangChain `add_texts`，锁定 bge-m3 |
 | 所有相似度整体偏高、区分度差 | 向量化时拼了标题前缀，同文档各 chunk 共享同一段开头 | **只对正文向量化**，标题放 metadata |
 | 正确片段永远进不了候选集 | 先 `k=3` 截断，再按阈值过滤，第 4 名及以后被提前丢掉 | 先取 `RAG_CANDIDATE_K=6` 宽候选 → 阈值过滤 → 截 `RAG_FEED_TOPK=3` |
-| 阈值没有依据 | 拍脑袋设一个数，换个问法就崩 | 31 行阈值 × 6 指标扫描标定 **0.53**；top1 过线但余量 < `0.06` 判 **`weak_hit`**，前端告警 |
+| 阈值没有依据 | 拍脑袋设一个数，换个问法就崩 | 45 条评测集 + 阈值 / 余量扫描（[docs/04](docs/04.评测报告.md)）；当前语料下 `0.53` 保召回，top1 余量 < `0.06` 判 **`weak_hit`**，前端告警 |
 | MySQL 与向量库不一致 | 两套存储各自写，删了文档向量还在 | 更新/删除先落 MySQL 再同步删向量；反查不到文档的孤儿向量记 `warning` |
 | 删除不存在的文档却返回 200 | 只做 `query().delete()`，不校验受影响行 | 删除前查存在，不存在返回 **404**，与 `PUT` 语义对齐 |
 
@@ -82,18 +82,25 @@ docker compose exec backend python tools/reindex_knowledge.py   # 首次必做�
 
 ### 方式 B：Windows 原生（无需 Docker）
 
-前置：MySQL 80 服务、Ollama（同上两个模型）、Python 3.11 虚拟环境、Node.js。
+前置：MySQL 80 服务、Ollama（同上两个模型）、Python 3.11+ 虚拟环境、Node.js 18+。
 
 ```powershell
 # 1) 导入库结构与数据（覆盖空库）
 mysql -uroot -p < mysql-init/llmops_db.sql
 
-# 2) 装依赖
+# 2) 生成后端配置（注意：读的是 llmops-backend/.env；根目录 .env 只给 docker compose 用）
+cd llmops-backend
+copy ..\.env.example .env
+# 编辑 .env：填 MYSQL_PASSWORD，并把 OLLAMA_BASE_URL 改成 http://127.0.0.1:11434
+cd ..
+
+# 3) 装依赖
 cd llmops-backend
 python -m venv .venv; .venv\Scripts\pip install -r requirements.txt
 cd ..\llmops-frontend; npm ci; npm run build-only
+cd ..
 
-# 3) 一键启停
+# 4) 一键启停
 .\start.ps1     # backend :8000 + frontend :3000
 .\stop.ps1
 ```
@@ -122,7 +129,8 @@ cd ..\llmops-frontend; npm ci; npm run build-only
 ├── .env.example                # 环境变量模板
 ├── start.ps1 / stop.ps1        # Windows 原生部署启停
 ├── DEPLOY.md                   # 完整部署 / 自检 / 排障手册
-├── docs/                       # 开发顺序与主链路笔记
+├── docs/                       # 开发顺序、主链路笔记、评测报告
+├── experiments/                # 45 条 RAG 评测集与扫描结果
 ├── mysql-init/                 # MySQL 镜像 + 全量初始化 SQL
 ├── llmops-backend/
 │   ├── app/
@@ -134,6 +142,7 @@ cd ..\llmops-frontend; npm ci; npm run build-only
 │   │   └── main.py
 │   ├── tests/                  # pytest：Prompt CRUD、RAG 过滤、chat 流程
 │   ├── tools/reindex_knowledge.py   # 从 MySQL 重建向量库
+│   ├── tools/evaluate_rag.py        # 检索评测 / 阈值与余量标定
 │   └── Dockerfile
 └── llmops-frontend/
     ├── src/views/              # ChatStudio / PromptManager / KnowledgeBase / runlogs
@@ -181,17 +190,32 @@ cd llmops-frontend
 npm run type-check   # vue-tsc，零报错
 ```
 
+## 评测
+
+检索层评测已固化为「题库 + 脚本 + 结果」：
+
+```bash
+cd llmops-backend
+.venv\Scripts\python.exe tools/evaluate_rag.py
+```
+
+- 题库 `experiments/eval_qa.jsonl`：45 条（21 exact / 16 paraphrase / 4 远域无答案 / 4 近域无答案）
+- 基线（21 条向量，`threshold=0.53`）：recall@6 **100%**、MRR **1.0000**、hit@3 **100%**、top1 准确率 **100%**；8 条无答案问题全部被阈值放行
+- 产物 `experiments/results/`：`per_query.csv`、`threshold_sweep.csv`、`margin_sweep.csv`、`summary.json`
+- 结论与局限见 [docs/04.评测报告](docs/04.评测报告.md)
+
 ## 已知边界与后续计划
 
 - **未做 rerank 精排**：问法与文档措辞差异较大时，正确片段仍可能排在第 3–4 位；当前只做到「召回 + 阈值 + 弱命中提示」。
-- **阈值与语料强相关**：`0.53` 和 `0.06` 是在本机工业语料上标定的，换一批语料需要重新扫描。
+- **阈值与语料强相关，且单阈值无法可靠拒答**：45 条评测集上正确题 top1 全部命中，但无答案题与正确题的 top1 分数重叠（正确最低 0.5808，无答案最高 0.6790）；`0.53` 是保召回选择，换语料需重新扫描。
+- **评测集规模有限**：45 条合成题、11 篇语料、8 条无答案问题；端到端「模型是否拒答」尚未评测（RAG 提示词允许模型在知识不足时结合通用知识补充）。
 - **鉴权是演示口令**，不是生产级认证方案。
 - 单机部署，无水平扩展；尚未接入 CI。
 
 后续计划：
 
 - [ ] rerank 精排（交叉编码器），把检索做成「召回 + 重排」两级
-- [ ] 阈值 / 余量按语料自动标定的脚本，替代手工扫描
+- [x] 阈值 / 余量按语料自动标定的脚本，替代手工扫描
 - [ ] GitHub Actions：pytest + vue-tsc
 - [ ] 补充界面截图与在线 Demo
 
@@ -200,6 +224,7 @@ npm run type-check   # vue-tsc，零报错
 - [DEPLOY.md](DEPLOY.md) —— 部署步骤、自检清单、故障排查
 - [docs/02.代码编写顺序](docs/02.代码编写顺序) —— 各文件的编写顺序与职责
 - [docs/03.核心开发流程](docs/03.核心开发流程) —— 主链路图
+- [docs/04.评测报告](docs/04.评测报告.md) —— 检索层评测、阈值 / 余量扫描与结论
 
 ---
 

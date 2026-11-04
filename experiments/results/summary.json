@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-11-04T15:00:46",
+  "elapsed_seconds": 1.57,
+  "questions": {
+    "path": "experiments/eval_qa.jsonl",
+    "total": 45,
+    "answerable": 37,
+    "no_answer": 8,
+    "by_type": {
+      "exact": 21,
+      "paraphrase": 16,
+      "no_answer_far": 4,
+      "no_answer_near": 4
+    }
+  },
+  "collection": {
+    "name": "knowledge_bge_m3",
+    "vectors": 21
+  },
+  "config": {
+    "threshold": 0.53,
+    "margin": 0.06,
+    "candidate_k": 6,
+    "feed_topk": 3
+  },
+  "baseline": {
+    "recall_at_candidate_k_pct": 100.0,
+    "mrr": 1.0,
+    "coverage_pct": 100.0,
+    "hit_at_feed_pct": 100.0,
+    "top1_accuracy_pct": 100.0,
+    "top1_accuracy_among_fed_pct": 100.0,
+    "false_accept_far_pct": 100.0,
+    "false_accept_near_pct": 100.0,
+    "false_accept_all_pct": 100.0,
+    "missed_answerable_ids": [],
+    "false_accepted_ids": [
+      "q38",
+      "q39",
+      "q40",
+      "q41",
+      "q42",
+      "q43",
+      "q44",
+      "q45"
+    ]
+  },
+  "score_separation": {
+    "answerable_top1_min": 0.5808,
+    "answerable_top1_median": 0.6641,
+    "answerable_top1_mean": 0.6586,
+    "correct_hit_top1_min": 0.5808,
+    "no_answer_top1_max": 0.679,
+    "no_answer_top1_mean": 0.5954
+  },
+  "recommendations": {
+    "threshold": 0.58,
+    "threshold_balanced_accuracy_pct": 75.0,
+    "stable_threshold_range": null,
+    "max_threshold_keep_full_recall": 0.58,
+    "margin": null,
+    "margin_youden_j_pct": null,
+    "margin_to_capture_all_wrong": null,
+    "margin_data_available": false,
+    "correct_downgraded_at_current_margin_pct": 8.11
+  }
+}

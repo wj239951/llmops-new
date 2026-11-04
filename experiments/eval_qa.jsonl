@@ -1,0 +1,45 @@
+{"id": "q01", "type": "exact", "question": "工业 LLMOps 的核心能力包括哪些？", "expected_doc_ids": [44], "reference_answer": "Prompt 管理、RAG、模型调用、日志监控、工具调用。", "note": ""}
+{"id": "q02", "type": "paraphrase", "question": "这个平台本地版用什么模型来跑对话？", "expected_doc_ids": [44], "reference_answer": "本地版使用 Ollama 调用 deepseek-R1:7b，云端使用 DeepSeek API。", "note": ""}
+{"id": "q03", "type": "exact", "question": "注塑机 ZX-2026 的螺杆传动链条必须使用什么型号的润滑脂？", "expected_doc_ids": [46], "reference_answer": "RL-2077，禁止用通用锂基脂替代。", "note": ""}
+{"id": "q04", "type": "exact", "question": "注塑机报错误码 E-073 时应先检查什么？", "expected_doc_ids": [46], "reference_answer": "先检查模温机水路是否堵塞，再确认热电偶接线是否松动，禁止直接复位后继续生产。", "note": ""}
+{"id": "q05", "type": "paraphrase", "question": "ZX-2026 的螺杆与料筒间隙超过多少毫米需要更换螺杆？", "expected_doc_ids": [46], "reference_answer": "间隙超过 0.4 毫米需更换螺杆。", "note": ""}
+{"id": "q06", "type": "paraphrase", "question": "注塑机合模压力低于多少吨必须停机填单？", "expected_doc_ids": [46], "reference_answer": "低于 120 吨视为异常，须停机填写设备异常单。", "note": ""}
+{"id": "q07", "type": "exact", "question": "空压机 GA-90 的排气温度正常区间是多少？", "expected_doc_ids": [47], "reference_answer": "75 至 95 摄氏度，超过 105 摄氏度机组自动停机。", "note": ""}
+{"id": "q08", "type": "exact", "question": "空压机油气分离器压差超过多少兆帕必须更换滤芯？", "expected_doc_ids": [47], "reference_answer": "压差超过 0.15 兆帕必须更换滤芯。", "note": ""}
+{"id": "q09", "type": "paraphrase", "question": "GA-90 的皮带一般多少小时更换？", "expected_doc_ids": [47], "reference_answer": "每 6000 小时更换，出现裂纹或张紧力不足时提前更换。", "note": ""}
+{"id": "q10", "type": "paraphrase", "question": "粉尘大的环境里空压机空气过滤器多久更换？", "expected_doc_ids": [47], "reference_answer": "正常每 2000 小时，环境粉尘大的工况缩短到 1000 小时。", "note": ""}
+{"id": "q11", "type": "exact", "question": "KYN28 配电室每几小时巡视一次？", "expected_doc_ids": [48], "reference_answer": "每两小时巡视一次。", "note": ""}
+{"id": "q12", "type": "exact", "question": "配电室电缆终端与母线连接处温差超过多少开尔文要上报？", "expected_doc_ids": [48], "reference_answer": "温差超过 15 开尔文时上报并安排停电处理。", "note": ""}
+{"id": "q13", "type": "paraphrase", "question": "绝缘手套、绝缘靴和验电器多久送检一次？", "expected_doc_ids": [48], "reference_answer": "每 6 个月送检一次并贴合格标签。", "note": ""}
+{"id": "q14", "type": "paraphrase", "question": "10 千伏配电室停电操作顺序是什么？", "expected_doc_ids": [48], "reference_answer": "先断开断路器，再拉开负荷侧隔离开关，最后拉开电源侧隔离开关，严禁带负荷拉隔离开关。", "note": ""}
+{"id": "q15", "type": "exact", "question": "燃气锅炉给水硬度内控指标是多少？", "expected_doc_ids": [49], "reference_answer": "给水硬度不大于 0.03 毫摩尔每升。", "note": ""}
+{"id": "q16", "type": "exact", "question": "锅炉锅水 pH 值控制在什么范围？", "expected_doc_ids": [49], "reference_answer": "锅水 pH 值控制在 10 至 12 之间。", "note": ""}
+{"id": "q17", "type": "paraphrase", "question": "锅炉安全阀多久手动试验一次？", "expected_doc_ids": [49], "reference_answer": "安全阀每周手动试验一次，防止阀座粘连。", "note": ""}
+{"id": "q18", "type": "exact", "question": "受限空间作业前强制通风不少于多少分钟？", "expected_doc_ids": [50], "reference_answer": "用风机强制通风不少于 30 分钟，禁止向罐内通纯氧。", "note": ""}
+{"id": "q19", "type": "exact", "question": "受限空间内氧含量应保持在什么范围？", "expected_doc_ids": [50], "reference_answer": "氧含量保持在 19.5% 至 21% 之间。", "note": ""}
+{"id": "q20", "type": "paraphrase", "question": "进储罐作业前，相连的进出料管道怎么处理才算隔绝？", "expected_doc_ids": [50], "reference_answer": "必须加盲板隔绝并登记编号，仅关闭阀门不算隔绝。", "note": ""}
+{"id": "q21", "type": "paraphrase", "question": "受限空间作业票编号规则是什么？", "expected_doc_ids": [50], "reference_answer": "SX 加四位流水号，例如 SX-0126。", "note": ""}
+{"id": "q22", "type": "exact", "question": "危化品仓库库内温度控制在多少摄氏度以下？", "expected_doc_ids": [51], "reference_answer": "库内温度控制在 35 摄氏度以下。", "note": ""}
+{"id": "q23", "type": "exact", "question": "危化品库每几小时巡检一次？", "expected_doc_ids": [51], "reference_answer": "每两小时巡检一次。", "note": ""}
+{"id": "q24", "type": "paraphrase", "question": "强氧化剂和易燃液体可以存放在同一区域吗？", "expected_doc_ids": [51], "reference_answer": "不得同区存放，酸类与碱类也必须分开货架。", "note": ""}
+{"id": "q25", "type": "paraphrase", "question": "危化品出库有什么复核要求？", "expected_doc_ids": [51], "reference_answer": "按先进先出执行，双人在磅秤上复核重量并在收发台账签字。", "note": ""}
+{"id": "q26", "type": "exact", "question": "灭火器压力表指针指向红区说明什么？", "expected_doc_ids": [52], "reference_answer": "说明压力不足，须送修，不得继续使用。", "note": ""}
+{"id": "q27", "type": "exact", "question": "室内消火栓水带长度按规定配置多少米？", "expected_doc_ids": [52], "reference_answer": "水带长度按规定配置 25 米。", "note": ""}
+{"id": "q28", "type": "paraphrase", "question": "消防应急照明每月做什么试验？", "expected_doc_ids": [52], "reference_answer": "每月做一次断电试验，持续供电时间不足时更换电池组。", "note": ""}
+{"id": "q29", "type": "exact", "question": "一线城市出差住宿每晚上限多少元？", "expected_doc_ids": [53], "reference_answer": "一线城市每晚上限 400 元。", "note": ""}
+{"id": "q30", "type": "exact", "question": "出差结束后多少个工作日内提交报销单？", "expected_doc_ids": [53], "reference_answer": "出差结束后 10 个工作日内提交，超过 30 日不予受理。", "note": ""}
+{"id": "q31", "type": "paraphrase", "question": "单张发票金额超过多少元要附行程单或水单？", "expected_doc_ids": [53], "reference_answer": "单张发票金额超过 5000 元的，须附行程单或水单。", "note": ""}
+{"id": "q32", "type": "exact", "question": "食堂食品留样每份不少于多少克？", "expected_doc_ids": [54], "reference_answer": "留样量不少于 125 克。", "note": ""}
+{"id": "q33", "type": "exact", "question": "留样在 0 至 5 摄氏度下保存多长时间？", "expected_doc_ids": [54], "reference_answer": "在 0 至 5 摄氏度下保存 48 小时以上。", "note": ""}
+{"id": "q34", "type": "paraphrase", "question": "食堂冷藏温度控制在什么范围？", "expected_doc_ids": [54], "reference_answer": "冷藏温度控制在 0 至 5 摄氏度，冷冻不高于零下 18 摄氏度。", "note": ""}
+{"id": "q35", "type": "exact", "question": "公务车油耗较上月上升超过多少必须说明原因？", "expected_doc_ids": [55], "reference_answer": "油耗较上月上升超过 15% 时必须说明原因。", "note": ""}
+{"id": "q36", "type": "exact", "question": "单日行驶超过多少公里要安排两名驾驶员或中途休息？", "expected_doc_ids": [55], "reference_answer": "单日行驶超过 400 公里时安排两名驾驶员或中途休息。", "note": ""}
+{"id": "q37", "type": "paraphrase", "question": "公务车轮胎每多少公里做一次换位？", "expected_doc_ids": [55], "reference_answer": "轮胎每四万公里做一次换位。", "note": ""}
+{"id": "q38", "type": "no_answer_far", "question": "公司员工每年有多少天带薪年假？", "expected_doc_ids": [], "reference_answer": "", "note": "库内无年假制度"}
+{"id": "q39", "type": "no_answer_far", "question": "叉车驾驶员需要持什么证上岗？", "expected_doc_ids": [], "reference_answer": "", "note": "库内无叉车管理内容"}
+{"id": "q40", "type": "no_answer_far", "question": "厂区废水排放的 COD 限值是多少？", "expected_doc_ids": [], "reference_answer": "", "note": "库内无环保排放指标"}
+{"id": "q41", "type": "no_answer_far", "question": "公司 IT 服务器的数据备份周期是多久？", "expected_doc_ids": [], "reference_answer": "", "note": "库内无 IT 运维制度"}
+{"id": "q42", "type": "no_answer_near", "question": "食堂从业人员健康证的有效期是几年？", "expected_doc_ids": [], "reference_answer": "", "note": "库内只写每年体检、持证上岗，未写有效期"}
+{"id": "q43", "type": "no_answer_near", "question": "注塑机 E-073 错误码对应的模具温度传感器型号是什么？", "expected_doc_ids": [], "reference_answer": "", "note": "库内只写排查水路与热电偶，未给传感器型号"}
+{"id": "q44", "type": "no_answer_near", "question": "空压机 GA-90 变频器的载波频率应设置多少？", "expected_doc_ids": [], "reference_answer": "", "note": "库内无变频器参数"}
+{"id": "q45", "type": "no_answer_near", "question": "干粉灭火器出厂满几年必须报废？", "expected_doc_ids": [], "reference_answer": "", "note": "库内只说满一定年限须送检，未给报废年限"}

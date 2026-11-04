@@ -79,7 +79,7 @@ def _open_vectorstore():
     if col is None:
         client.create_collection(_COLLECTION, metadata=_SPACE)
         print(f"[rag_service] 已创建 cosine collection '{_COLLECTION}'；"
-              f"向量需从 MySQL 重新灌：migrate_to_chroma.py --apply。")
+              f"向量需从 MySQL 重新灌：python tools/reindex_knowledge.py。")
     return Chroma(
         client=client,
         collection_name=_COLLECTION,

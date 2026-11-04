@@ -1,6 +1,6 @@
-1. sql/llmops.sql
+1. mysql-init/llmops_db.sql
 2. backend/requirements.txt
-3. backend/.env.example
+3. .env.example（仓库根目录；原生部署复制到 llmops-backend/.env）
 4. backend/app/core/config.py
 5. backend/app/core/database.py
 6. backend/app/models/prompt.py
@@ -10,7 +10,7 @@
 10. backend/app/schemas/knowledge.py
 11. backend/app/schemas/chat.py
 12. backend/app/services/ollama_service.py
-13. backend/app/services/openai_service.py
+13. backend/app/services/deepseek_service.py
 14. backend/app/services/llm_service.py
 15. backend/app/services/prompt_service.py
 16. backend/app/services/rag_service.py
@@ -36,3 +36,5 @@
 36. frontend/src/views/KnowledgeBase.vue
 37. frontend/src/views/RunLogs.vue
 38. README.md
+
+# 注：仓库实际目录名为 llmops-backend / llmops-frontend，本文件写于项目拆分前，路径以仓库现状为准。
