@@ -54,7 +54,7 @@ def test_rerank_reorders_candidates_and_filters_by_rerank_score(
     monkeypatch.setattr(rag_service.vectorstore, "similarity_search_with_score", mock)
 
     rerank_scores = {"正文0": 0.20, "正文1": 0.95, "正文2": 0.60, "正文3": 0.40}
-    monkeypatch.setattr(rerank_service, "is_available", lambda: True)
+    monkeypatch.setattr(rerank_service, "is_available", lambda force=False: True)
     monkeypatch.setattr(
         rerank_service,
         "rerank_chunks",
@@ -84,7 +84,7 @@ def test_rerank_falls_back_to_cosine_when_unavailable(db_session, monkeypatch, r
     monkeypatch.setattr(
         rag_service.vectorstore, "similarity_search_with_score", MagicMock(return_value=hits)
     )
-    monkeypatch.setattr(rerank_service, "is_available", lambda: False)
+    monkeypatch.setattr(rerank_service, "is_available", lambda force=False: False)
 
     out = RAGService().search(db_session, "查询")
     assert [c.content for c in out] == ["正文0", "正文1"]
@@ -92,7 +92,7 @@ def test_rerank_falls_back_to_cosine_when_unavailable(db_session, monkeypatch, r
 
 
 def test_active_score_config_switches_to_rerank_thresholds(monkeypatch, rerank_on):
-    monkeypatch.setattr(rerank_service, "is_available", lambda: True)
+    monkeypatch.setattr(rerank_service, "is_available", lambda force=False: True)
     threshold, margin, mode = RAGService().active_score_config()
     assert mode == "rerank"
     assert threshold == settings.RAG_RERANK_SCORE_THRESHOLD

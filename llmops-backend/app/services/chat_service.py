@@ -124,6 +124,9 @@ class ChatService:
             "final_query": req.query,
             "rag_docs": [],
             "rag_status": "off",
+            "score_mode": "off",
+            "rerank_requested": False,
+            "rerank_available": False,
         }
 
     def _apply_rag(self, db: Session, req: ChatRequest, ctx: dict) -> None:
@@ -133,13 +136,17 @@ class ChatService:
             workflow_reasoning.append("步骤5：未启用 RAG，直接调用模型。")
             return
         # search() 内部已完成「取宽候选 → 按阈值过滤 → 截断」，此处不再重复过滤
-        rag_docs = self.rag.search(db, req.query)
+        rag_docs = self.rag.search(db, req.query, use_rerank=req.use_rerank)
         ctx["rag_docs"] = rag_docs
+        rerank_requested, rerank_available, score_mode = self.rag.rerank_state(req.use_rerank)
+        ctx["score_mode"] = score_mode
+        ctx["rerank_requested"] = rerank_requested
+        ctx["rerank_available"] = rerank_available
         context = self.rag.build_context(rag_docs)
         if context:
             top1 = rag_docs[0].score
             # 阈值按当前打分方式取：精排 sigmoid 分数 / cosine 分数（见 rag_service）
-            threshold, weak_margin, score_mode = self.rag.active_score_config()
+            threshold, weak_margin, score_mode = self.rag.active_score_config(req.use_rerank)
             # 闸门勉强过线时标成 weak_hit，不让前端把它当成可靠依据
             ctx["rag_status"] = "hit" if top1 >= threshold + weak_margin else "weak_hit"
             ctx["final_query"] = (
@@ -147,9 +154,13 @@ class ChatService:
                 "如果知识库内容不足，请说明不足，再结合通用知识补充。\n\n"
                 f"{context}\n\n用户问题：{req.query}"
             )
+            rerank_note = (
+                "（精排请求但服务端不可用，已回退向量）"
+                if rerank_requested and not rerank_available else ""
+            )
             workflow_reasoning.append(
                 f"步骤5：启用 RAG，检索到 {len(rag_docs)} 条知识片段"
-                f"（打分={score_mode}，top1={top1:.4f}，判定 {ctx['rag_status']}）。"
+                f"（打分={score_mode}，top1={top1:.4f}，判定 {ctx['rag_status']}）{rerank_note}。"
             )
         else:
             ctx["rag_status"] = "no_hit"
@@ -237,6 +248,9 @@ class ChatService:
                 "conversation_id": req.conversation_id,
                 "rag_status": ctx["rag_status"],
                 "sources": self._source_items(ctx["rag_docs"]),
+                "score_mode": ctx.get("score_mode"),
+                "rerank_requested": ctx.get("rerank_requested"),
+                "rerank_available": ctx.get("rerank_available"),
             }
         except Exception as e:
             latency_ms = int((time.time() - start) * 1000)
@@ -269,6 +283,9 @@ class ChatService:
                     "prompt_name": ctx["prompt_name"],
                     "rag_status": ctx["rag_status"],
                     "sources": self._source_items(ctx["rag_docs"]),
+                    "score_mode": ctx.get("score_mode"),
+                    "rerank_requested": ctx.get("rerank_requested"),
+                    "rerank_available": ctx.get("rerank_available"),
                 },
             }
             ctx["workflow_reasoning"].append("步骤6：调用大模型生成回答（流式）。")
@@ -331,6 +348,9 @@ class ChatService:
                 "prompt_name": ctx["prompt_name"],
                 "rag_status": ctx["rag_status"],
                 "sources": self._source_items(ctx["rag_docs"]),
+                "score_mode": ctx.get("score_mode"),
+                "rerank_requested": ctx.get("rerank_requested"),
+                "rerank_available": ctx.get("rerank_available"),
             }
             logger.info(
                 "chat.stream done provider=%s model=%s ttft_ms=%s latency_ms=%s tokens=%s",

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.chat_service import ChatService
@@ -24,6 +25,18 @@ def _sse(item: dict) -> str:
     """把事件字典序列化为 SSE 帧。"""
     data = json.dumps(item.get("data") or {}, ensure_ascii=False)
     return f"event: {item.get('event', 'message')}\ndata: {data}\n\n"
+
+
+@router.get("/options")
+def chat_options():
+    """前端精排开关的初始状态：只读服务端配置，不触发模型加载。"""
+    return {
+        "rerank_enabled": bool(settings.RAG_RERANK_ENABLED),
+        "rerank_model": settings.RAG_RERANK_MODEL,
+        "hybrid_enabled": bool(settings.RAG_HYBRID_ENABLED),
+        "score_threshold_cosine": settings.RAG_SCORE_THRESHOLD,
+        "score_threshold_rerank": settings.RAG_RERANK_SCORE_THRESHOLD,
+    }
 
 
 @router.post("", response_model=ChatResponse)

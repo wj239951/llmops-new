@@ -47,6 +47,12 @@ Token统计
            <el-form-item label="启用 RAG">
             <el-switch v-model="form.use_rag" />
            </el-form-item>
+           <el-form-item label="启用精排">
+            <el-switch v-model="form.use_rerank" :disabled="!form.use_rag" />
+            <span class="rerank-hint">
+              服务端精排：{{ serverRerankEnabled ? '可用' : '不可用（请求后会自动回退向量余弦）' }}
+            </span>
+           </el-form-item>
             <el-form-item label="会话历史">
               <el-select v-model="form.conversation_id" clearable style="width: 300px" @change="switchConversation">
                 <el-option
@@ -122,6 +128,20 @@ Token统计
 type="success"
 style="margin-top: 10px"
 />
+                <el-alert
+                  v-if="scoreMode"
+                  :title="scoreModeText"
+                  :type="scoreMode === 'rerank' ? 'success' : 'info'"
+                  :closable="false"
+                  style="margin-top: 8px"
+                />
+                <el-alert
+                  v-if="rerankRequested && rerankAvailable === false"
+                  title="已请求精排，但服务端精排不可用，本次已回退为向量余弦"
+                  type="warning"
+                  :closable="false"
+                  style="margin-top: 8px"
+                />
 <div style="margin-top: 12px">
   <el-alert
     v-if="ragStatus === 'off'"
@@ -164,7 +184,7 @@ style="margin-top: 10px"
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ChatMessage, ChatRequestPayload, Conversation, Prompt, RagStatus, Source } from '../types'
-import { sendChat, sendChatStream } from '../api/chat'
+import { getChatOptions, sendChat, sendChatStream } from '../api/chat'
 import { listPrompts } from '../api/prompt'
 import { listConversations, createConversation, getMessages, deleteConversation } from '../api/conversations'
 
@@ -177,6 +197,18 @@ const thought = ref('')
 const sources = ref<Source[]>([])
 const sourcesExpanded = ref(false)
 const ragStatus = ref<RagStatus>('off')
+// 精排开关与服务端能力：serverRerankEnabled 来自 GET /chat/options（不触发模型加载）
+const serverRerankEnabled = ref(false)
+const serverRerankModel = ref('')
+// 本次请求的实际打分信息（来自 meta / done / 非流式响应）
+const scoreMode = ref('')
+const rerankRequested = ref(false)
+const rerankAvailable = ref<boolean | null>(null)
+const scoreModeText = computed(() => {
+  if (scoreMode.value === 'rerank') return '本次打分方式：精排（cross-encoder）'
+  if (scoreMode.value === 'cosine') return '本次打分方式：向量余弦'
+  return '本次打分方式：未启用（未走 RAG）'
+})
 const prompts = ref<Prompt[]>([])
 const conversations = ref<Conversation[]>([])
 const messages = ref<ChatMessage[]>([])
@@ -188,6 +220,7 @@ const form = reactive({
   model_provider: 'deepseek',
   model_name: 'deepseek-chat',
   use_rag: true,
+  use_rerank: false,
   memory_enabled: true,
   conversation_id: ''
 })
@@ -202,6 +235,17 @@ watch(
       form.model_name = value === 'ollama' ? 'deepseek-r1:7b' : 'deepseek-chat'
     }
 )
+/** 从 meta / done / 非流式响应里读取本次实际打分信息 */
+function applyScoreInfo(info: {
+  score_mode?: string | null
+  rerank_requested?: boolean | null
+  rerank_available?: boolean | null
+}) {
+  scoreMode.value = info.score_mode ?? ''
+  rerankRequested.value = info.rerank_requested ?? false
+  rerankAvailable.value = info.rerank_available ?? null
+}
+
 /** 把后端 status 事件的 phase 翻译成用户可读的阶段文案 */
 function streamPhaseText(phase: 'preparing' | 'retrieving' | 'generating'): string {
   if (phase === 'retrieving') return '正在检索知识库…'
@@ -212,6 +256,17 @@ async function loadPrompts() {prompts.value = await listPrompts()
 }
 async function loadConversations() {
   conversations.value = await listConversations()
+}
+async function loadChatOptions() {
+  try {
+    const opts = await getChatOptions()
+    serverRerankEnabled.value = opts.rerank_enabled
+    serverRerankModel.value = opts.rerank_model
+    form.use_rerank = opts.rerank_enabled
+  } catch {
+    // 可选接口失败不影响聊天；开关保持关闭并显示不可用
+    serverRerankEnabled.value = false
+  }
 }
 async function newConversation() {
   const newConv = await createConversation()
@@ -224,6 +279,9 @@ async function newConversation() {
   meta.value = ''
   sources.value = []
   ragStatus.value = 'off'
+  scoreMode.value = ''
+  rerankRequested.value = false
+  rerankAvailable.value = null
 }
 async function switchConversation() {
   if (!form.conversation_id) {
@@ -248,6 +306,9 @@ async function deleteCurrentConversation() {
   meta.value = ''
   sources.value = []
   ragStatus.value = 'off'
+  scoreMode.value = ''
+  rerankRequested.value = false
+  rerankAvailable.value = null
   await loadConversations()
 }
 async function submit() {
@@ -260,7 +321,15 @@ async function submit() {
   sources.value = []
   sourcesExpanded.value = false
   ragStatus.value = 'off'
+  scoreMode.value = ''
+  rerankRequested.value = false
+  rerankAvailable.value = null
   const ctrl = new AbortController()
+  // RAG 关闭时精排无意义，显式传 null 表示"本次不干预，跟随服务端"
+  const payload: ChatRequestPayload = {
+    ...form,
+    use_rerank: form.use_rag ? form.use_rerank : null,
+  }
   controller.value = ctrl
 
   // 是否已收到实质输出（reasoning/delta）：决定失败后能否安全降级到非流式
@@ -272,7 +341,7 @@ async function submit() {
   try {
     try {
       await sendChatStream(
-        form,
+        payload,
         {
           onStatus(phase) {
             streamPhase.value = streamPhaseText(phase)
@@ -282,6 +351,7 @@ async function submit() {
             sources.value = m.sources ?? []
             ragStatus.value = m.rag_status ?? 'off'
             meta.value = `${m.model_provider} / ${m.model_name}`
+            applyScoreInfo(m)
           },
           onReasoning(delta) {
             hasSubstantiveOutput = true
@@ -300,6 +370,7 @@ async function submit() {
             ragStatus.value = d.rag_status ?? 'off'
             if (d.conversation_id) form.conversation_id = d.conversation_id
             meta.value = `${d.model_provider} / ${d.model_name} / tokens=${d.total_tokens} / ${d.latency_ms}ms`
+            applyScoreInfo(d)
           },
           onError(message) {
             streamError = message || '流式生成失败'
@@ -325,13 +396,14 @@ async function submit() {
         // 首个实质输出前就失败：降级调用原有非流式 /chat，保持旧行为
         ElMessage.warning('流式输出不可用，已自动降级为非流式请求')
         streamPhase.value = '正在重试（非流式）…'
-        const res = await sendChat(form, ctrl.signal)
+        const res = await sendChat(payload, ctrl.signal)
         answer.value = res.answer
         reasoning.value = res.reasoning ?? ''
         thought.value = res.thought
         sources.value = res.sources ?? []
         ragStatus.value = res.rag_status ?? 'off'
         meta.value = `${res.model_provider} / ${res.model_name} / tokens=${res.total_tokens} / ${res.latency_ms}ms`
+        applyScoreInfo(res)
       } else if (!streamError) {
         // 已经有内容但流没给 done 就断开：保留已有内容，提示可能不完整
         ElMessage.error('流式输出中断，回答可能不完整')
@@ -358,10 +430,15 @@ async function submit() {
 function cancel() {
   controller.value?.abort()
 }
-onMounted(() => { loadPrompts(); loadConversations() })
+onMounted(() => { loadPrompts(); loadConversations(); loadChatOptions() })
 </script>
 
 <style scoped>
+.rerank-hint {
+  margin-left: 10px;
+  font-size: 12px;
+  color: #909399;
+}
 .source-item {
   padding: 8px 0;
   border-bottom: 1px solid #eee;

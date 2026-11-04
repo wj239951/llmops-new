@@ -3,7 +3,7 @@
 > 一个可本地部署的一站式 LLMOps 平台：**Prompt 管理 + 知识库 RAG + 多模型对话 + 会话记忆 + 调用日志**。
 > 后端 FastAPI，前端 Vue3 + TypeScript，向量检索 Chroma（bge-m3），元数据 MySQL 8。
 
-`后端 pytest 33 passed` · `前端 vue-tsc / vite build 通过` · `对话 SSE 流式输出` · `RAG 评测 75 题 · 混合检索 + rerank` · `Docker Compose 一键启动` · `支持 Windows 原生部署`
+`后端 pytest 36 passed` · `前端 vue-tsc / vite build 通过` · `对话 SSE 流式输出` · `精排请求级开关` · `RAG 评测 75 题 · 混合检索 + rerank` · `Docker Compose 一键启动` · `支持 Windows 原生部署`
 
 ---
 
@@ -37,7 +37,7 @@
                 bge-m3 · 1024 维   └─ DeepSeek API（云端）
 ```
 
-对话输出有两条路径：`POST /api/chat` 一次性返回完整回答，`POST /api/chat/stream` 用 SSE 增量返回状态、`reasoning`、回答分片与最终汇总；两者共用 `ChatService` 的 Prompt 解析、会话记忆、RAG 检索与调用日志，前端默认走流式，首包前失败自动回退非流式。
+对话输出有两条路径：`POST /api/chat` 一次性返回完整回答，`POST /api/chat/stream` 用 SSE 增量返回状态、`reasoning`、回答分片与最终汇总；两者共用 `ChatService` 的 Prompt 解析、会话记忆、RAG 检索与调用日志，前端默认走流式，首包前失败自动回退非流式。Chat Studio 还提供「精排」开关：请求体 `use_rerank`（`null` 跟随服务端、`true`/`false` 本次强制），响应与 SSE `meta` 回传 `score_mode` / `rerank_requested` / `rerank_available`，页面直接显示本次打分方式，服务端精排不可用时提示已回退向量余弦。
 
 ## 核心工程问题与解法
 
@@ -57,9 +57,9 @@
 
 ## 功能
 
-- **对话**：本地 Ollama（deepseek-r1:7b）与 DeepSeek 云端双通道，可选 Prompt 模板、温度 / top_p、思考过程、Token 与耗时统计；**SSE 流式输出**（`reasoning` 分片 + RAG 阶段进度），流式失败自动降级非流式
+- **对话**：本地 Ollama（deepseek-r1:7b）与 DeepSeek 云端双通道，可选 Prompt 模板、温度 / top_p、思考过程、Token 与耗时统计；**SSE 流式输出**（`reasoning` 分片 + RAG 阶段进度），流式失败自动降级非流式；**精排开关**可请求级强制开/关，并显示本次实际打分方式
 - **知识库**：手动录入、文件上传解析、增删改查，切块与向量同步，来源与命中分数回显
-- **RAG**：三级检索（余弦召回 + 可选 jieba/BM25 关键词召回 RRF 融合 + 可选 bge-reranker 精排）、阈值过滤、宽候选池、弱命中降级（`hit` / `weak_hit` / `no_hit` / `off` 四态）
+- **RAG**：三级检索（余弦召回 + 可选 jieba/BM25 关键词召回 RRF 融合 + 可选 bge-reranker 精排）、阈值过滤、宽候选池、弱命中降级（`hit` / `weak_hit` / `no_hit` / `off` 四态）；支持请求级 `use_rerank` 覆盖服务端配置
 - **会话记忆**：按 `conversation_id` 取最近 `MEMORY_MAX_TURNS` 轮成功对话，支持会话列表与历史消息
 - **调用日志**：分页查询，带 token、耗时、状态、错误信息
 
@@ -159,7 +159,7 @@ RAG_HYBRID_ENABLED=true
 | `RAG_SCORE_THRESHOLD` | 余弦命中阈值，默认 `0.53` |
 | `RAG_CANDIDATE_K` / `RAG_FEED_TOPK` / `RAG_WEAK_MARGIN` | 代码默认 `6` / `3` / `0.06` |
 | `MEMORY_MAX_TURNS` | 会话记忆加载轮数，默认 `10` |
-| `RAG_RERANK_ENABLED` / `RAG_RERANK_MODEL_PATH` | 精排开关（默认 `false`）/ 本地权重目录；开启后依赖或权重缺失时自动回退纯 cosine |
+| `RAG_RERANK_ENABLED` / `RAG_RERANK_MODEL_PATH` | 精排开关（默认 `false`）/ 本地权重目录；开启后依赖或权重缺失时自动回退纯 cosine；请求级 `use_rerank` 可临时覆盖 |
 | `RAG_RERANK_CANDIDATE_K` / `RAG_RERANK_SCORE_THRESHOLD` / `RAG_RERANK_WEAK_MARGIN` | 代码默认 `6` / `0.76` / `0.06`（45 题标定，见 [docs/05](docs/05.Rerank实验报告.md)） |
 | `RAG_HYBRID_ENABLED` / `RAG_HYBRID_DENSE_K` / `RAG_HYBRID_SPARSE_K` / `RAG_HYBRID_RRF_K` | 混合检索开关（默认 `false`）/ 向量候选 `12` / BM25 候选 `12` / RRF 常数 `60`；无额外依赖 |
 
@@ -204,8 +204,9 @@ RAG_HYBRID_ENABLED=true
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `GET` | `/` | 服务信息（免鉴权） |
-| `POST` | `/api/chat` | 对话：RAG / 会话记忆 / 模型选择（非流式） |
-| `POST` | `/api/chat/stream` | 流式对话（SSE）：`status` / `meta` / `reasoning` / `delta` / `done` / `error` |
+| `GET` | `/api/chat/options` | 页面可选项：精排是否可用、模型名、两套阈值（只读配置，不加载模型） |
+| `POST` | `/api/chat` | 对话：RAG / 会话记忆 / 模型选择（非流式）；`use_rerank` 可覆盖精排开关 |
+| `POST` | `/api/chat/stream` | 流式对话（SSE）：`status` / `meta` / `reasoning` / `delta` / `done` / `error`；`use_rerank` 覆盖精排开关 |
 | `GET` `POST` | `/api/prompts` | Prompt 列表 / 新建 |
 | `PUT` `DELETE` | `/api/prompts/{id}` | 更新 / 删除（不存在 404） |
 | `GET` `POST` | `/api/knowledge` | 文档列表 / 新建（切块 + 向量化） |
@@ -216,7 +217,7 @@ RAG_HYBRID_ENABLED=true
 | `GET` | `/api/conversations/{id}/messages` | 会话历史消息 |
 | `DELETE` | `/api/conversations/{id}` | 删除会话及其记录 |
 
-流式接口返回 `text/event-stream`：`status`（`preparing` / `retrieving` / `generating`）→ `meta`（模型、`rag_status`、`sources`）→ `reasoning` / `delta` 增量 → `done`（最终 `answer`、`first_token_ms` / `latency_ms` / token）；异常时以 `error` 结束。旧 `/api/chat` 保留，作为非流式回退。
+流式接口返回 `text/event-stream`：`status`（`preparing` / `retrieving` / `generating`）→ `meta`（模型、`rag_status`、`sources`）→ `reasoning` / `delta` 增量 → `done`（最终 `answer`、`first_token_ms` / `latency_ms` / token）；异常时以 `error` 结束。旧 `/api/chat` 保留，作为非流式回退。精排开关：请求可带 `use_rerank`（`null`/省略 = 跟随服务端 `RAG_RERANK_ENABLED`，`true`/`false` = 本次强制），`meta` / `done` / 非流式响应中的 `score_mode` 为 `off` / `cosine` / `rerank`，`rerank_available=false` 表示已回退向量。
 
 ## 部署形态与成本权衡
 
@@ -228,10 +229,10 @@ RAG_HYBRID_ENABLED=true
 
 ```bash
 cd llmops-backend
-.venv\Scripts\python.exe -m pytest -q     # 33 passed
+.venv\Scripts\python.exe -m pytest -q     # 36 passed
 ```
 
-覆盖：Prompt CRUD、RAG 检索的宽候选 + 阈值过滤、chat 流程的 `rag_status` 四态判定、流式 SSE 的事件顺序 / `meta` + `sources` / 成功与失败日志、精排重排 / 阈值过滤 / 模型不可用回退、混合检索的分词 / BM25 / RRF / 索引不可用回退。前端类型检查与构建：
+覆盖：Prompt CRUD、RAG 检索的宽候选 + 阈值过滤、chat 流程的 `rag_status` 四态判定、流式 SSE 的事件顺序 / `meta` + `sources` / 成功与失败日志、精排重排 / 阈值过滤 / 模型不可用回退、混合检索的分词 / BM25 / RRF / 索引不可用回退、精排请求级开关（三态 / 不可用回退 / 响应报告）。前端类型检查与构建：
 
 ```bash
 cd llmops-frontend
@@ -261,6 +262,7 @@ cd llmops-backend
 
 - **rerank 只在小样本上标定**：`0.76` 是 45 题上的刀刃值——距最高误接受样本（q43=0.7509）仅 **0.009**，稳定平台只有 0.76–0.78 三步；同时漏掉 1 条改写题（q02，精排分 0.2368）。换语料或扩题库必须重扫，不能当常数。
 - **精排是 CPU 推理**：K=6 时单次检索 +4.3–6.2s，首次请求还要 13–16s 加载模型；未启用 CUDA / ONNX 加速。
+- **精排开关在服务器上默认不可用**：2GB 云服务器未装 torch 与权重，页面打开开关会请求精排但后端回退 cosine（`meta.rerank_available=false`，前端提示已回退）；本地要看到 `score_mode=rerank` 需按上文安装依赖与权重。
 - **cosine 单阈值无法可靠拒答**：45 条上正确题 top1 全部命中，但无答案题与正确题 top1 分数重叠（0.5808–0.6790）；`0.53` 是保召回选择，换语料需重扫。rerank 在本题库可 100% 拒掉无答案，但阈值同样是刀刃值（见上）。
 - **评测集规模有限**：75 条合成题、11 篇语料、8 条无答案问题；端到端「模型是否拒答」尚未评测（RAG 提示词允许模型在知识不足时结合通用知识补充）。
 - **混合检索收益有前提**：只在 dense 漏召回时生效。当前 11 篇语料上自然语言题库 dense 召回已 100%，hybrid 与 dense 指标完全相同；15 条搜索框短查询上才体现收益（recall@6 86.7%→100%），代价是纯召回模式 +8~12ms。BM25 索引建在进程内存，语料上万级需换持久化倒排。
@@ -277,6 +279,7 @@ cd llmops-backend
 - [x] 阈值 / 余量按语料自动标定的脚本，替代手工扫描
 - [x] 混合检索（jieba/BM25 + 向量 RRF 融合），搜索框短查询 recall@6 86.7%→100% —— 见 [docs/06](docs/06.混合检索实验报告.md)
 - [x] SSE 流式输出（reasoning 分片 + RAG 阶段进度），首包前失败自动降级非流式 —— 见 [docs/07](docs/07.流式改造报告.md)
+- [x] 精排请求级开关 + 打分方式可视化（Chat Studio「精排」开关，`GET /api/chat/options`）
 - [ ] 扩充评测集（150+ 条、跨语料）验证 rerank 阈值泛化性
 - [ ] 精排加速：CUDA / ONNX Runtime / 更小模型（CPU 上目前约 4.8s/次）
 - [ ] 按题型分别标定精排阈值（自然语言 / 编号 / 短查询），或用 top1-top2 相对间隔替代绝对阈值

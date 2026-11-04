@@ -1,6 +1,7 @@
 //聊天接口封装
 import { http } from './request'
 import type {
+  ChatOptions,
   ChatRequestPayload,
   ChatResponse,
   ChatStreamDone,
@@ -9,6 +10,11 @@ import type {
 
 export function sendChat(data: ChatRequestPayload, signal?: AbortSignal) {
   return http.post<ChatResponse>('/chat', data, { signal })
+}
+
+/** 聊天页可选项：精排是否可用、模型名与两套阈值（只读服务端配置，不加载模型） */
+export function getChatOptions() {
+  return http.get<ChatOptions>('/chat/options')
 }
 
 /** SSE status 事件的阶段（对应后端 event: status 的 phase 字段） */

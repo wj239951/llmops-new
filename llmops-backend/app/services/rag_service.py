@@ -135,7 +135,8 @@ class RAGService:
     # 已重构进 app/services/hybrid_service.py：分词保留（jieba.lcut_for_search + 正则整体保留
     # 型号/编号），排序升级为 BM25，并与 bge-m3 向量召回做 RRF 融合；RAG_HYBRID_ENABLED 控制
     # 是否启用（默认关闭），依赖/索引不可用时自动回退纯向量。
-    def search(self, db: Session, query: str, limit: int | None = None):
+    def search(self, db: Session, query: str, limit: int | None = None,
+               use_rerank: bool | None = None):
         """检索：宽召回（可选混合）→（可选）精排 → 阈值过滤 → 截断。
 
         过滤收在这一层而不是调用方，是为了先取宽候选再截断：
@@ -148,8 +149,8 @@ class RAGService:
         if not query.strip():
             return []
         feed_topk = limit if limit is not None else settings.RAG_FEED_TOPK
-        rerank_enabled = bool(settings.RAG_RERANK_ENABLED)
-        if rerank_enabled:
+        rerank_requested, rerank_available, _ = self.rerank_state(use_rerank)
+        if rerank_requested:
             candidate_k = max(settings.RAG_RERANK_CANDIDATE_K, feed_topk)
         else:
             candidate_k = max(feed_topk, settings.RAG_CANDIDATE_K)
@@ -173,10 +174,10 @@ class RAGService:
                 logger.warning("RAG 向量检索失败，本轮按空上下文处理：%s", exc)
                 return []
 
-        if rerank_enabled:
+        if rerank_requested:
             # 延迟导入：没装 torch/transformers 时不影响服务启动
             from app.services import rerank_service
-            if rerank_service.is_available():
+            if rerank_available:
                 try:
                     reranked = rerank_service.rerank_chunks(query, chunks)
                     passed = [
@@ -193,14 +194,30 @@ class RAGService:
         passed.sort(key=lambda c: c.score, reverse=True)
         return passed[:feed_topk]
 
-    def active_score_config(self) -> tuple[float, float, str]:
+    def rerank_state(self, use_rerank: bool | None = None) -> tuple[bool, bool, str]:
+        """返回（是否请求精排, 精排是否可用, 实际打分方式）。
+
+        use_rerank=None 跟随服务端配置；True/False 是请求级强制开关（Chat Studio 的
+        精排按钮）。请求强制开启但服务端缺少 torch/权重时 available=False，
+        打分方式回退 cosine，调用方可据此在前端提示「精排不可用」。
+        """
+        requested = (
+            bool(settings.RAG_RERANK_ENABLED) if use_rerank is None else bool(use_rerank)
+        )
+        available = False
+        if requested:
+            from app.services import rerank_service
+            available = rerank_service.is_available(force=(use_rerank is True))
+        return requested, available, ("rerank" if available else "cosine")
+
+    def active_score_config(self, use_rerank: bool | None = None) -> tuple[float, float, str]:
         """search() 之后调用：返回当前生效的（阈值, 弱命中余量, 打分方式）。
 
         精排模型可用时阈值按精排 sigmoid 分数标定（docs/05），否则按 cosine（docs/04）。
         混合检索不改变打分尺度，只扩大候选池，因此打分方式仍归入 cosine 一类。
         """
-        from app.services import rerank_service
-        if settings.RAG_RERANK_ENABLED and rerank_service.is_available():
+        _requested, _available, score_mode = self.rerank_state(use_rerank)
+        if score_mode == "rerank":
             return (
                 settings.RAG_RERANK_SCORE_THRESHOLD,
                 settings.RAG_RERANK_WEAK_MARGIN,

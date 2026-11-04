@@ -54,6 +54,8 @@ export interface ChatRequestPayload {
   temperature?: number
   top_p?: number
   use_rag?: boolean
+  /** 精排开关：null/省略=跟随服务端配置，true/false=本次请求强制开/关 */
+  use_rerank?: boolean | null
   conversation_id?: string | null
   memory_enabled?: boolean
 }
@@ -78,6 +80,12 @@ export interface ChatResponse {
   conversation_id: string | null
   rag_status: RagStatus
   sources: Source[]
+  /** 本次实际生效的打分方式：off / cosine / rerank */
+  score_mode?: string | null
+  /** 用户是否请求了精排 */
+  rerank_requested?: boolean | null
+  /** 服务端精排是否真的可用（false 时已回退余弦） */
+  rerank_available?: boolean | null
 }
 
 /** RAG 判定四态：off=未启用，no_hit=启用但无过阈值片段，
@@ -92,6 +100,9 @@ export interface ChatStreamMeta {
   prompt_name: string | null
   rag_status: RagStatus
   sources: Source[]
+  score_mode?: string | null
+  rerank_requested?: boolean | null
+  rerank_available?: boolean | null
 }
 
 /** SSE 流式聊天的 done 事件（event: done），流结束时一次性给出最终值 */
@@ -108,6 +119,18 @@ export interface ChatStreamDone {
   prompt_name: string | null
   rag_status: RagStatus
   sources: Source[]
+  score_mode?: string | null
+  rerank_requested?: boolean | null
+  rerank_available?: boolean | null
+}
+
+/** 聊天页可选项（对应 GET /api/chat/options） */
+export interface ChatOptions {
+  rerank_enabled: boolean
+  rerank_model: string
+  hybrid_enabled: boolean
+  score_threshold_cosine: number
+  score_threshold_rerank: number
 }
 
 /** 会话（对应 Conversation） */

@@ -128,9 +128,13 @@ def get_reranker() -> CrossEncoderReranker:
     return _reranker
 
 
-def is_available() -> bool:
-    """开启精排且模型可用（首次调用会触发加载，失败只记一次，不会反复重试）。"""
-    return bool(settings.RAG_RERANK_ENABLED) and _reranker.load()
+def is_available(force: bool = False) -> bool:
+    """精排可用则返回 True（首次调用触发加载，失败只记一次，不会反复重试）。
+
+    force=True 用于请求级开关（ChatRequest.use_rerank=True）：即使服务端默认关闭，
+    也允许当前请求尝试加载；加载失败仍会回退 cosine。
+    """
+    return (bool(settings.RAG_RERANK_ENABLED) or force) and _reranker.load()
 
 
 def rerank_chunks(query: str, chunks, top_k: int | None = None):
