@@ -1,9 +1,41 @@
 # 调用本地 Ollama 接口，访问 deepseek-r1:7b 模型。
+import json
 import re
+
 import requests
 from app.core.config import settings
 
 class OllamaService:
+    def _build_prompt(
+        self,
+        query: str,
+        system_prompt: str,
+        history: list[dict] | None = None,
+    ) -> str:
+        # 会话记忆：把最近若干轮历史拼成文本块，和系统提示词一起塞进 prompt。
+        history_block = ""
+        if history:
+            lines = []
+            for msg in history:  # 遍历对话历史
+                role = "用户" if msg.get("role") == "user" else "助手"  # 确定模板
+                content = (msg.get("content") or "").strip()  # 删除空格
+                if content:  # 删除掉空格后没有内容的行
+                    lines.append(f"{role}：{content}")
+            if lines:
+                history_block = (
+                    "\n以下是历史对话记录，请结合上下文回答最新问题：\n"
+                    + "\n".join(lines)
+                    + "\n"
+                )  # 生成提示词
+        return f"""系统提示词：
+{system_prompt}
+##
+{history_block}
+##
+用户问题：
+{query}
+"""
+
     def _split_reasoning_and_answer(self, raw_text: str, data: dict) -> tuple[str, str]:
         reasoning = ""
 
@@ -79,31 +111,7 @@ class OllamaService:
         ##
     ) -> dict:
         model = model_name or settings.OLLAMA_MODEL
-        ##会话记忆模块
-        history_block = ""
-        if history:
-            lines = []
-            for msg in history:#遍历对话历史
-                role = "用户" if msg.get("role") == "user" else "助手"#确定模板
-                content = (msg.get("content") or "").strip()#删除空格
-                if content:#删除删除掉空格后没有内容的行
-                    lines.append(f"{role}：{content}")
-            if lines:
-                history_block = (
-                    "\n以下是历史对话记录，请结合上下文回答最新问题：\n"
-                    + "\n".join(lines)
-                    + "\n"
-                )#生成提示词
-        ##
-
-        prompt = f"""系统提示词：
-{system_prompt}
-##
-{history_block}
-##
-用户问题：
-{query}
-"""
+        prompt = self._build_prompt(query, system_prompt, history)
 
         session = requests.Session()
         session.trust_env = False
@@ -138,4 +146,79 @@ class OllamaService:
             "model_provider": "ollama",
             "model_name": model,
             "total_tokens": data.get("prompt_eval_count", 0) + data.get("eval_count", 0),
+        }
+
+    def chat_stream(
+        self,
+        query: str,
+        system_prompt: str,
+        model_name: str | None = None,
+        temperature: float = 0.7,
+        top_p: float = 0.9,
+        history: list[dict] | None = None,
+    ):
+        """Ollama 流式生成：解析 /api/generate 的 NDJSON 逐行输出。
+
+        产出格式：{"reasoning": str} / {"content": str} / {"done": True, ...汇总...}
+        """
+        model = model_name or settings.OLLAMA_MODEL
+        prompt = self._build_prompt(query, system_prompt, history)
+
+        session = requests.Session()
+        session.trust_env = False
+        answer_parts: list[str] = []
+        reasoning_parts: list[str] = []
+        prompt_tokens = 0
+        eval_tokens = 0
+        try:
+            with session.post(
+                f"{settings.OLLAMA_BASE_URL}/api/generate",
+                json={
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": True,
+                    "options": {
+                        "temperature": temperature,
+                        "top_p": top_p,
+                    },
+                },
+                stream=True,
+                timeout=(10, 180),
+            ) as response:
+                if response.status_code != 200:
+                    raise RuntimeError(
+                        f"Ollama调用失败：{response.status_code}，内容：{response.text}"
+                    )
+                for raw_line in response.iter_lines(decode_unicode=True):
+                    if not raw_line:
+                        continue
+                    data = json.loads(raw_line)
+                    # 新版 Ollama 会把思考过程放在 thinking 字段
+                    thinking = data.get("thinking") or ""
+                    if thinking:
+                        reasoning_parts.append(thinking)
+                        yield {"reasoning": thinking}
+                    piece = data.get("response") or ""
+                    if piece:
+                        answer_parts.append(piece)
+                        yield {"content": piece}
+                    if data.get("done"):
+                        prompt_tokens = int(data.get("prompt_eval_count") or 0)
+                        eval_tokens = int(data.get("eval_count") or 0)
+                        break
+        finally:
+            session.close()
+
+        raw_answer = "".join(answer_parts)
+        # deepseek-r1 有时把思考过程内联成 <think>...</think>，流式结束后统一剥离
+        reasoning, final_answer = self._split_reasoning_and_answer(raw_text=raw_answer, data={})
+        if not reasoning and reasoning_parts:
+            reasoning = "".join(reasoning_parts)
+        yield {
+            "done": True,
+            "answer": final_answer,
+            "reasoning": reasoning,
+            "model_provider": "ollama",
+            "model_name": model,
+            "total_tokens": prompt_tokens + eval_tokens,
         }

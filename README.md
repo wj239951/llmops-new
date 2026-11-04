@@ -3,7 +3,7 @@
 > 一个可本地部署的一站式 LLMOps 平台：**Prompt 管理 + 知识库 RAG + 多模型对话 + 会话记忆 + 调用日志**。
 > 后端 FastAPI，前端 Vue3 + TypeScript，向量检索 Chroma（bge-m3），元数据 MySQL 8。
 
-`后端 pytest 27 passed` · `前端 vue-tsc 零报错` · `RAG 评测 75 题 · 混合检索 + rerank` · `Docker Compose 一键启动` · `支持 Windows 原生部署`
+`后端 pytest 33 passed` · `前端 vue-tsc / vite build 通过` · `对话 SSE 流式输出` · `RAG 评测 75 题 · 混合检索 + rerank` · `Docker Compose 一键启动` · `支持 Windows 原生部署`
 
 ---
 
@@ -37,6 +37,8 @@
                 bge-m3 · 1024 维   └─ DeepSeek API（云端）
 ```
 
+对话输出有两条路径：`POST /api/chat` 一次性返回完整回答，`POST /api/chat/stream` 用 SSE 增量返回状态、`reasoning`、回答分片与最终汇总；两者共用 `ChatService` 的 Prompt 解析、会话记忆、RAG 检索与调用日志，前端默认走流式，首包前失败自动回退非流式。
+
 ## 核心工程问题与解法
 
 这是本项目真正花时间的地方，也是它区别于普通 CRUD 的地方：
@@ -55,7 +57,7 @@
 
 ## 功能
 
-- **对话**：本地 Ollama（deepseek-r1:7b）与 DeepSeek 云端双通道，可选 Prompt 模板、温度 / top_p、思考过程、Token 与耗时统计
+- **对话**：本地 Ollama（deepseek-r1:7b）与 DeepSeek 云端双通道，可选 Prompt 模板、温度 / top_p、思考过程、Token 与耗时统计；**SSE 流式输出**（`reasoning` 分片 + RAG 阶段进度），流式失败自动降级非流式
 - **知识库**：手动录入、文件上传解析、增删改查，切块与向量同步，来源与命中分数回显
 - **RAG**：三级检索（余弦召回 + 可选 jieba/BM25 关键词召回 RRF 融合 + 可选 bge-reranker 精排）、阈值过滤、宽候选池、弱命中降级（`hit` / `weak_hit` / `no_hit` / `off` 四态）
 - **会话记忆**：按 `conversation_id` 取最近 `MEMORY_MAX_TURNS` 轮成功对话，支持会话列表与历史消息
@@ -169,18 +171,18 @@ RAG_HYBRID_ENABLED=true
 ├── .env.example                # 环境变量模板
 ├── start.ps1 / stop.ps1        # Windows 原生部署启停
 ├── DEPLOY.md                   # 完整部署 / 自检 / 排障手册
-├── docs/                       # 开发顺序、主链路笔记、cosine/rerank/混合检索评测报告
+├── docs/                       # 开发顺序、主链路笔记、cosine/rerank/混合检索评测、流式改造报告
 ├── experiments/                # 75 条评测集 + cosine/rerank/混合检索结果
 ├── mysql-init/                 # MySQL 镜像 + 全量初始化 SQL
 ├── llmops-backend/
 │   ├── app/
-│   │   ├── api/                # chat / prompt / knowledge / logs / conversations
+│   │   ├── api/                # chat（含 /chat/stream SSE）/ prompt / knowledge / logs / conversations
 │   │   ├── core/               # config / database / security（Bearer 口令鉴权）
 │   │   ├── models/             # prompt / knowledge / chat_log / conversation
 │   │   ├── schemas/
 │   │   ├── services/           # rag / hybrid / rerank / chat / llm / ollama / deepseek / prompt / file_parser
 │   │   └── main.py
-│   ├── tests/                  # pytest：Prompt CRUD、RAG 过滤、chat 流程、rerank 精排/回退、混合检索分词/BM25/RRF
+│   ├── tests/                  # pytest：Prompt CRUD、RAG 过滤、chat 流程、流式 SSE 事件顺序、rerank 精排/回退、混合检索分词/BM25/RRF
 │   ├── tools/reindex_knowledge.py   # 从 MySQL 重建向量库
 │   ├── tools/evaluate_rag.py        # 检索评测 / 阈值与余量标定
 │   ├── tools/evaluate_rerank.py     # 精排评测 / 精排阈值与余量标定
@@ -189,7 +191,7 @@ RAG_HYBRID_ENABLED=true
 │   └── Dockerfile
 └── llmops-frontend/
     ├── src/views/              # ChatStudio / PromptManager / KnowledgeBase / runlogs
-    ├── src/api/                # axios 封装 + 资源接口
+    ├── src/api/                # axios 封装 + 资源接口（含 SSE 流式客户端）
     ├── src/router/
     ├── vite.config.ts          # 含 preview.proxy 反代
     └── Dockerfile + nginx.conf
@@ -202,7 +204,8 @@ RAG_HYBRID_ENABLED=true
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `GET` | `/` | 服务信息（免鉴权） |
-| `POST` | `/api/chat` | 对话：RAG / 会话记忆 / 模型选择 |
+| `POST` | `/api/chat` | 对话：RAG / 会话记忆 / 模型选择（非流式） |
+| `POST` | `/api/chat/stream` | 流式对话（SSE）：`status` / `meta` / `reasoning` / `delta` / `done` / `error` |
 | `GET` `POST` | `/api/prompts` | Prompt 列表 / 新建 |
 | `PUT` `DELETE` | `/api/prompts/{id}` | 更新 / 删除（不存在 404） |
 | `GET` `POST` | `/api/knowledge` | 文档列表 / 新建（切块 + 向量化） |
@@ -212,6 +215,8 @@ RAG_HYBRID_ENABLED=true
 | `GET` `POST` | `/api/conversations` | 会话列表 / 新建 |
 | `GET` | `/api/conversations/{id}/messages` | 会话历史消息 |
 | `DELETE` | `/api/conversations/{id}` | 删除会话及其记录 |
+
+流式接口返回 `text/event-stream`：`status`（`preparing` / `retrieving` / `generating`）→ `meta`（模型、`rag_status`、`sources`）→ `reasoning` / `delta` 增量 → `done`（最终 `answer`、`first_token_ms` / `latency_ms` / token）；异常时以 `error` 结束。旧 `/api/chat` 保留，作为非流式回退。
 
 ## 部署形态与成本权衡
 
@@ -223,14 +228,15 @@ RAG_HYBRID_ENABLED=true
 
 ```bash
 cd llmops-backend
-.venv\Scripts\python.exe -m pytest -q     # 27 passed
+.venv\Scripts\python.exe -m pytest -q     # 33 passed
 ```
 
-覆盖：Prompt CRUD、RAG 检索的宽候选 + 阈值过滤、chat 流程的 `rag_status` 四态判定、精排重排 / 阈值过滤 / 模型不可用回退、混合检索的分词 / BM25 / RRF / 索引不可用回退。前端类型检查：
+覆盖：Prompt CRUD、RAG 检索的宽候选 + 阈值过滤、chat 流程的 `rag_status` 四态判定、流式 SSE 的事件顺序 / `meta` + `sources` / 成功与失败日志、精排重排 / 阈值过滤 / 模型不可用回退、混合检索的分词 / BM25 / RRF / 索引不可用回退。前端类型检查与构建：
 
 ```bash
 cd llmops-frontend
 npm run type-check   # vue-tsc，零报错
+npm run build-only   # vite 构建
 ```
 
 ## 评测
@@ -259,6 +265,9 @@ cd llmops-backend
 - **评测集规模有限**：75 条合成题、11 篇语料、8 条无答案问题；端到端「模型是否拒答」尚未评测（RAG 提示词允许模型在知识不足时结合通用知识补充）。
 - **混合检索收益有前提**：只在 dense 漏召回时生效。当前 11 篇语料上自然语言题库 dense 召回已 100%，hybrid 与 dense 指标完全相同；15 条搜索框短查询上才体现收益（recall@6 86.7%→100%），代价是纯召回模式 +8~12ms。BM25 索引建在进程内存，语料上万级需换持久化倒排。
 - **精排阈值对编号类问题偏严**：阈值 `0.76` 标定自自然语言题库，hard 题库（精确编号）精排覆盖率只有 **73.3%**、短查询题库 **46.7%**——不少题排名第 1 但分数低于阈值被过滤，换题型需重扫（[docs/06](docs/06.混合检索实验报告.md)）。
+- **流式依赖代理不缓冲**：SSE 已带 `X-Accel-Buffering: no`，nginx 默认 `proxy_buffering on` 会把增量输出压成一次性返回；服务器经 Caddy 反代，自建其它网关需关闭响应缓冲。当前也没有 SSE 心跳，开 RAG 精排时 `retrieving` 到 `meta` 之间可能数秒无输出，代理空闲超时过短会断流。
+- **流式不做断线续传**：没有 `Last-Event-ID`，刷新或断网后只能重发请求（会重新生成、重复计费）；客户端主动取消不写调用日志，生成器被取消时已生成部分不落库。
+- **流式时延尚未上报**：`first_token_ms` / `latency_ms` 只写进 `done` 与服务端日志，没有指标面板；本地一次联调的数值与冷启动说明见 [docs/07](docs/07.流式改造报告.md) 7.4。`deepseek-reasoner` 的思维链与回答分开推送，老版本 Ollama 内联的 `<think>…</think>` 只能在流结束后剥离。
 - **鉴权是演示口令**，不是生产级认证方案。
 - 单机部署，无水平扩展；尚未接入 CI。
 
@@ -267,9 +276,12 @@ cd llmops-backend
 - [x] rerank 精排（交叉编码器），把检索做成「召回 + 重排」两级 —— 见 [docs/05](docs/05.Rerank实验报告.md)
 - [x] 阈值 / 余量按语料自动标定的脚本，替代手工扫描
 - [x] 混合检索（jieba/BM25 + 向量 RRF 融合），搜索框短查询 recall@6 86.7%→100% —— 见 [docs/06](docs/06.混合检索实验报告.md)
+- [x] SSE 流式输出（reasoning 分片 + RAG 阶段进度），首包前失败自动降级非流式 —— 见 [docs/07](docs/07.流式改造报告.md)
 - [ ] 扩充评测集（150+ 条、跨语料）验证 rerank 阈值泛化性
 - [ ] 精排加速：CUDA / ONNX Runtime / 更小模型（CPU 上目前约 4.8s/次）
 - [ ] 按题型分别标定精排阈值（自然语言 / 编号 / 短查询），或用 top1-top2 相对间隔替代绝对阈值
+- [ ] SSE 心跳与断线重连（Last-Event-ID 或明确的「连接已断开」提示）
+- [ ] TTFT / 分片间隔的指标上报
 - [ ] GitHub Actions：pytest + vue-tsc
 - [ ] 补充界面截图与在线 Demo
 
@@ -281,6 +293,7 @@ cd llmops-backend
 - [docs/04.评测报告](docs/04.评测报告.md) —— 检索层评测、阈值 / 余量扫描与结论
 - [docs/05.Rerank实验报告](docs/05.Rerank实验报告.md) —— 两级检索、精排阈值扫描与代价
 - [docs/06.混合检索实验报告](docs/06.混合检索实验报告.md) —— BM25 + 向量 RRF 混合检索、三题库四模式对照与局限
+- [docs/07.流式改造报告](docs/07.流式改造报告.md) —— SSE 事件协议、双 provider 流式、前端增量渲染与降级
 
 ---
 

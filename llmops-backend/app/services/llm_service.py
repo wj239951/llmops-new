@@ -17,3 +17,26 @@ class LLMService:
         if provider == "deepseek":
             return self.deepseek.chat(query, system_prompt, model_name, temperature, top_p, history)
         raise ValueError(f"不支持的模型提供商：{provider}")
+
+    def chat_stream(
+        self,
+        query: str,
+        system_prompt: str,
+        provider: str | None = None,
+        model_name: str | None = None,
+        temperature: float = 0.7,
+        top_p: float = 0.9,
+        history: list[dict] | None = None,
+    ):
+        provider = provider or settings.DEFAULT_MODEL_PROVIDER
+        if provider == "ollama":
+            yield from self.ollama.chat_stream(
+                query, system_prompt, model_name, temperature, top_p, history
+            )
+            return
+        if provider == "deepseek":
+            yield from self.deepseek.chat_stream(
+                query, system_prompt, model_name, temperature, top_p, history
+            )
+            return
+        raise ValueError(f"不支持的模型提供商：{provider}")

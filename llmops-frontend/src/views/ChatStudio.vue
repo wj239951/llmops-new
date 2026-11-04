@@ -77,6 +77,14 @@ Token统计
            <el-button v-if="loading" @click="cancel">
             取消
            </el-button>
+           <el-alert
+             v-if="loading"
+             :title="streamPhase"
+             type="info"
+             :closable="false"
+             show-icon
+             style="margin-top: 12px"
+           />
           </el-form>
          </div>
          <div class="card" v-if="messages.length">
@@ -154,8 +162,9 @@ style="margin-top: 10px"
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import type { ChatMessage, ChatRequestPayload, Conversation, Prompt, RagStatus, Source } from '../types'
-import { sendChat } from '../api/chat'
+import { sendChat, sendChatStream } from '../api/chat'
 import { listPrompts } from '../api/prompt'
 import { listConversations, createConversation, getMessages, deleteConversation } from '../api/conversations'
 
@@ -171,6 +180,8 @@ const ragStatus = ref<RagStatus>('off')
 const prompts = ref<Prompt[]>([])
 const conversations = ref<Conversation[]>([])
 const messages = ref<ChatMessage[]>([])
+// 流式阶段提示（loading 时显示在发送/取消按钮下方）
+const streamPhase = ref('正在准备…')
 const form = reactive({
   query: '请介绍一下你自己',
   prompt_id: undefined as number | undefined,
@@ -191,6 +202,12 @@ watch(
       form.model_name = value === 'ollama' ? 'deepseek-r1:7b' : 'deepseek-chat'
     }
 )
+/** 把后端 status 事件的 phase 翻译成用户可读的阶段文案 */
+function streamPhaseText(phase: 'preparing' | 'retrieving' | 'generating'): string {
+  if (phase === 'retrieving') return '正在检索知识库…'
+  if (phase === 'generating') return '正在生成…'
+  return '正在准备…'
+}
 async function loadPrompts() {prompts.value = await listPrompts()
 }
 async function loadConversations() {
@@ -235,6 +252,7 @@ async function deleteCurrentConversation() {
 }
 async function submit() {
   loading.value = true
+  streamPhase.value = '正在准备…'
   answer.value = ''
   reasoning.value = ''
   thought.value = ''
@@ -245,26 +263,94 @@ async function submit() {
   const ctrl = new AbortController()
   controller.value = ctrl
 
+  // 是否已收到实质输出（reasoning/delta）：决定失败后能否安全降级到非流式
+  let hasSubstantiveOutput = false
+  // 是否收到 done：只有 done 才算流式正常完成
+  let doneReceived = false
+  let streamError = ''
+
   try {
-    const res = await sendChat(form, ctrl.signal)
-    answer.value = res.answer
-    reasoning.value = res.reasoning || ''
-    thought.value = res.thought
-    sources.value = res.sources || []
-    ragStatus.value = res.rag_status || 'off'
-    meta.value = `${res.model_provider} / ${res.model_name} /
-tokens=${res.total_tokens} / ${res.latency_ms}ms`
+    try {
+      await sendChatStream(
+        form,
+        {
+          onStatus(phase) {
+            streamPhase.value = streamPhaseText(phase)
+          },
+          onMeta(m) {
+            if (m.conversation_id) form.conversation_id = m.conversation_id
+            sources.value = m.sources ?? []
+            ragStatus.value = m.rag_status ?? 'off'
+            meta.value = `${m.model_provider} / ${m.model_name}`
+          },
+          onReasoning(delta) {
+            hasSubstantiveOutput = true
+            reasoning.value += delta
+          },
+          onDelta(content) {
+            hasSubstantiveOutput = true
+            answer.value += content
+          },
+          onDone(d) {
+            doneReceived = true
+            answer.value = d.answer
+            reasoning.value = d.reasoning ?? ''
+            thought.value = d.thought
+            sources.value = d.sources ?? []
+            ragStatus.value = d.rag_status ?? 'off'
+            if (d.conversation_id) form.conversation_id = d.conversation_id
+            meta.value = `${d.model_provider} / ${d.model_name} / tokens=${d.total_tokens} / ${d.latency_ms}ms`
+          },
+          onError(message) {
+            streamError = message || '流式生成失败'
+            ElMessage.error(streamError)
+          },
+        },
+        ctrl.signal,
+      )
+    } catch (error) {
+      if (ctrl.signal.aborted) throw error
+      streamError = error instanceof Error ? error.message : '流式请求失败'
+      // 已经有部分输出时及时提示；首包前的失败交给下面的降级分支统一提示
+      if (hasSubstantiveOutput) ElMessage.error(streamError)
+    }
+
+    if (ctrl.signal.aborted) {
+      if (!hasSubstantiveOutput) answer.value = '已取消'
+      return
+    }
+
+    if (!doneReceived) {
+      if (!hasSubstantiveOutput) {
+        // 首个实质输出前就失败：降级调用原有非流式 /chat，保持旧行为
+        ElMessage.warning('流式输出不可用，已自动降级为非流式请求')
+        streamPhase.value = '正在重试（非流式）…'
+        const res = await sendChat(form, ctrl.signal)
+        answer.value = res.answer
+        reasoning.value = res.reasoning ?? ''
+        thought.value = res.thought
+        sources.value = res.sources ?? []
+        ragStatus.value = res.rag_status ?? 'off'
+        meta.value = `${res.model_provider} / ${res.model_name} / tokens=${res.total_tokens} / ${res.latency_ms}ms`
+      } else if (!streamError) {
+        // 已经有内容但流没给 done 就断开：保留已有内容，提示可能不完整
+        ElMessage.error('流式输出中断，回答可能不完整')
+      }
+    }
+
+    streamPhase.value = '正在整理结果…'
     await loadConversations()
     if (form.conversation_id) {
       await switchConversation()
     }
   } catch {
     if (ctrl.signal.aborted) {
-      answer.value = '已取消'
+      if (!hasSubstantiveOutput) answer.value = '已取消'
     }
-    // 其它错误：toast 已由 request.ts 拦截器统一弹出，这里不再重复提示
+    // 其它错误：流式路径上面已用 ElMessage 提示；降级 sendChat 的错误由 request.ts 拦截器统一 toast
   } finally {
     loading.value = false
+    streamPhase.value = ''
     controller.value = null
   }
 }

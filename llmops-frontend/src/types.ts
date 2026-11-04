@@ -84,6 +84,32 @@ export interface ChatResponse {
  *  weak_hit=top1 仅勉强过阈值（不可当可靠依据），hit=正常命中 */
 export type RagStatus = 'off' | 'no_hit' | 'weak_hit' | 'hit'
 
+/** SSE 流式聊天的 meta 事件（event: meta），连接建立后先行下发 */
+export interface ChatStreamMeta {
+  conversation_id: string | null
+  model_provider: string
+  model_name: string
+  prompt_name: string | null
+  rag_status: RagStatus
+  sources: Source[]
+}
+
+/** SSE 流式聊天的 done 事件（event: done），流结束时一次性给出最终值 */
+export interface ChatStreamDone {
+  answer: string
+  reasoning: string | null
+  thought: string
+  model_provider: string
+  model_name: string
+  total_tokens: number
+  latency_ms: number
+  first_token_ms: number
+  conversation_id: string | null
+  prompt_name: string | null
+  rag_status: RagStatus
+  sources: Source[]
+}
+
 /** 会话（对应 Conversation） */
 export interface Conversation {
   id: string
