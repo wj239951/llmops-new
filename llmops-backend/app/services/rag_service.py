@@ -164,7 +164,14 @@ class RAGService:
                 except Exception as exc:  # pragma: no cover - 运行时保护
                     logger.warning("RAG 混合检索失败，回退纯向量检索：%s", exc)
         if chunks is None:
-            chunks = self._dense_chunks(db, query, candidate_k)
+            try:
+                chunks = self._dense_chunks(db, query, candidate_k)
+            except Exception as exc:  # pragma: no cover - 运行时保护
+                # embedding 服务不可用（云端余额不足 / 网络不通 / 本地 Ollama 没起）时
+                # 不要让整个对话请求 500：降级为「本轮没有知识库内容」，让模型用通用知识回答，
+                # 并把真实原因留在日志里，避免静默失败。
+                logger.warning("RAG 向量检索失败，本轮按空上下文处理：%s", exc)
+                return []
 
         if rerank_enabled:
             # 延迟导入：没装 torch/transformers 时不影响服务启动

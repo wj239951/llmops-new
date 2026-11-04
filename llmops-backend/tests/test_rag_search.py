@@ -108,6 +108,19 @@ def test_search_keeps_candidate_beyond_feed_topk_when_earlier_ones_are_filtered(
     assert all(c.score >= settings.RAG_SCORE_THRESHOLD for c in out)
 
 
+def test_search_degrades_to_empty_when_embedding_backend_fails(db_session, monkeypatch, caplog):
+    """embedding 服务不可用（如云端余额不足）时不应抛异常，应降级为空上下文。"""
+    import logging
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("embedding backend 402: balance insufficient")
+
+    monkeypatch.setattr(rag_service.vectorstore, "similarity_search_with_score", boom)
+    with caplog.at_level(logging.WARNING, logger=rag_service.logger.name):
+        assert RAGService().search(db_session, "查询") == []
+    assert any("RAG 向量检索失败" in r.message for r in caplog.records)
+
+
 def test_search_caps_result_at_feed_topk(db_session, monkeypatch):
     """过阈值的候选再多，最终也只返回 RAG_FEED_TOPK 条。"""
     ids = _seed_docs(db_session, 6)
