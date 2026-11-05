@@ -147,8 +147,11 @@ class ChatService:
             top1 = rag_docs[0].score
             # 阈值按当前打分方式取：精排 sigmoid 分数 / cosine 分数（见 rag_service）
             threshold, weak_margin, score_mode = self.rag.active_score_config(req.use_rerank)
+            # 型号/编号逐字命中（match=exact）时，分数低但确定性高，直接判 hit；
+            # 其余仍按「阈值 + 弱命中余量」判定，避免把勉强过线的片段当可靠依据。
+            exact_hit = getattr(rag_docs[0], "match", "vector") == "exact"
             # 闸门勉强过线时标成 weak_hit，不让前端把它当成可靠依据
-            ctx["rag_status"] = "hit" if top1 >= threshold + weak_margin else "weak_hit"
+            ctx["rag_status"] = "hit" if exact_hit or top1 >= threshold + weak_margin else "weak_hit"
             ctx["final_query"] = (
                 "请基于以下知识库内容回答问题。\n"
                 "如果知识库内容不足，请说明不足，再结合通用知识补充。\n\n"
@@ -169,7 +172,14 @@ class ChatService:
     @staticmethod
     def _source_items(rag_docs: list) -> list[dict]:
         return [
-            {"title": d.title, "snippet": d.content[:200], "source": d.source, "score": d.score}
+            {
+                "title": d.title,
+                "snippet": d.content[:200],
+                "source": d.source,
+                "score": d.score,
+                # vector=向量相似度；exact=型号/编号逐字命中（分数低但确定性高）
+                "match": getattr(d, "match", "vector"),
+            }
             for d in rag_docs
         ]
 

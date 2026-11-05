@@ -1,4 +1,3 @@
-RAG知识库中心
 <template>
   <div>
     <h1>知识库</h1>
@@ -42,16 +41,30 @@ RAG知识库中心
           </template>
         </el-table-column>
       </el-table>
+      <!-- 服务端分页：一次只取一页，避免几千篇文档时把全部正文拉进浏览器 -->
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next"
+        style="margin-top: 12px"
+        @current-change="load"
+        @size-change="handleSizeChange"
+      />
      </div>
     </div>
 </template>
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import type { KnowledgeDocument } from '../types'
-import { createKnowledge, listKnowledge, updateKnowledge, deleteKnowledge, uploadKnowledge } from '../api/knowledge'
+import { createKnowledge, listKnowledgePage, updateKnowledge, deleteKnowledge, uploadKnowledge } from '../api/knowledge'
 import { ElMessage, ElMessageBox, type UploadFile, type UploadInstance } from 'element-plus'
 
 const rows = ref<KnowledgeDocument[]>([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(10)
 const KnowledgeId = ref<number | null>(null) // 正在编辑的知识库ID
 const selectedFile = ref<File | null>(null)
 const uploadRef = ref<UploadInstance>()
@@ -71,6 +84,7 @@ async function upload() {
     ElMessage.success('文件上传成功')
     selectedFile.value = null
     uploadRef.value?.clearFiles()
+    page.value = 1
     await load()
   } catch {
     // 错误提示已由 request.ts 的响应拦截器统一处理
@@ -103,9 +117,27 @@ async function deleteRow(row: KnowledgeDocument) {
     return // 用户取消删除
   }
   await deleteKnowledge(row.id)
+  // 删掉当前页最后一条时回退一页，避免停在空白页
+  if (rows.value.length === 1 && page.value > 1) page.value -= 1
   await load()
 }
 
-    async function load() { rows.value = await listKnowledge() }
-      onMounted(load)
-    </script>
+function handleSizeChange() {
+  page.value = 1
+  load()
+}
+
+async function load() {
+  const res = await listKnowledgePage(page.value, pageSize.value)
+  rows.value = res.items
+  total.value = res.total
+  // 页码越界（例如删到只剩前几页）时回到最后一页
+  if (rows.value.length === 0 && total.value > 0 && page.value > 1) {
+    page.value = Math.max(1, Math.ceil(total.value / pageSize.value))
+    const last = await listKnowledgePage(page.value, pageSize.value)
+    rows.value = last.items
+    total.value = last.total
+  }
+}
+onMounted(load)
+</script>

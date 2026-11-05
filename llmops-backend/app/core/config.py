@@ -1,6 +1,13 @@
 # 读取 .env 配置，统一管理数据库地址、 Ollama 地址、 DeepSeek Key 、向量化通道 。
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# .env 一律按「本文件所在的后端根目录」解析，而不是按进程 cwd 解析。
+# 否则在别的目录启动 uvicorn（systemd、计划任务、IDE 配置错一个工作目录）时会读不到 .env，
+# 静默退化成空密码 / 默认地址，表现为 MySQL 1045 或 RAG 整条链路降级，排查成本极高。
+BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 class Settings(BaseSettings):
     APP_NAME: str = "Industrial LLMOps Ollama Local"
@@ -46,6 +53,12 @@ class Settings(BaseSettings):
     RAG_RERANK_SCORE_THRESHOLD: float = 0.76
     RAG_RERANK_WEAK_MARGIN: float = 0.06
     RAG_RERANK_MAX_LENGTH: int = 512
+    # 精排推理的 torch 线程数。start.ps1 给 numpy 设了 OMP_NUM_THREADS=1（避免 16 线程内存分配失败），
+    # 但 torch 会继承这个环境变量，导致精排 6 个片段要 20 s；显式设 4 线程可降到 ~6 s，
+    # 又不会回到 16 线程的内存风险。0 表示不干预（沿用环境变量）。
+    RAG_RERANK_TORCH_THREADS: int = 4
+    # 启动时后台预热精排模型（2 GB 权重，CPU 首次加载 15–40 s）
+    RAG_RERANK_WARMUP: bool = True
     # auto | cpu | cuda
     RAG_RERANK_DEVICE: str = "auto"
     # ── 混合检索（jieba/BM25 关键词召回 + 向量召回 RRF 融合，可选）──
@@ -58,6 +71,10 @@ class Settings(BaseSettings):
     RAG_HYBRID_SPARSE_K: int = 12
     # RRF 平滑常数：score = Σ 1/(k + rank)，k 越大越偏向「两路都靠前」
     RAG_HYBRID_RRF_K: int = 60
+    # 精确编号豁免：查询里带型号/编号（ZX-2026、GA-90、WNS2-1.25-Q）且候选片段原文包含该编号时，
+    # 不再要求它为 cosine 阈值让路。这类片段的余弦分普遍只有 0.4 左右，会被 0.53 的闸门误杀，
+    # 导致混合检索召回的片段到不了回答层（2026-11-05 实测：ZX-2026 候选分 0.4207，最终 0 条）。
+    RAG_HYBRID_EXACT_BYPASS: bool = True
     # embedding provider 开关:"ollama" | "siliconflow"
     EMBEDDING_PROVIDER: str = "ollama"
     # ollama embedding(本地)
@@ -76,7 +93,7 @@ class Settings(BaseSettings):
         )
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(BACKEND_DIR / ".env"),
         env_file_encoding="utf-8"
     )
 

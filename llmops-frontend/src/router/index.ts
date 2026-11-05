@@ -2,11 +2,13 @@
 // URL映射
 // 页面切换
 // 菜单跳转
+// 视图改成路由级懒加载：首屏只加载当前页面，其余页面按需下载，
+// 避免所有页面 + 组件库一次性打进同一个 1 MB 的 bundle。
 import { createRouter, createWebHistory } from 'vue-router'
-import ChatStudio from '../views/ChatStudio.vue'
-import PromptManager from '../views/PromptManager.vue'
-import KnowledgeBase from '../views/KnowledgeBase.vue'
-import RunLogs from '../views/runlogs.vue'
+const ChatStudio = () => import('../views/ChatStudio.vue')
+const PromptManager = () => import('../views/PromptManager.vue')
+const KnowledgeBase = () => import('../views/KnowledgeBase.vue')
+const RunLogs = () => import('../views/runlogs.vue')
 export default createRouter({
 history: createWebHistory(),
 routes: [

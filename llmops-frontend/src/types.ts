@@ -37,6 +37,14 @@ export interface KnowledgeDocument {
   created_at: string
 }
 
+/** 知识库分页响应（对应 KnowledgePage） */
+export interface KnowledgePage {
+  items: KnowledgeDocument[]
+  total: number
+  page: number
+  page_size: number
+}
+
 /** 新建/修改知识库文档的入参（对应 KnowledgeCreate / KnowledgeUpdate） */
 export interface KnowledgePayload {
   title?: string

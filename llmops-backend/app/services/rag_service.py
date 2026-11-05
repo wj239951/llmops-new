@@ -1,5 +1,6 @@
 # 知识库业务逻辑，包括保存知识、检索知识、拼接上下文。##检索增强索引
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, replace
 from fastapi import HTTPException
 #from langchain_community import embeddings
 from sqlalchemy.orm import Session
@@ -20,6 +21,29 @@ import os
 stop_words_file = os.path.join(str(os.path.dirname(__file__)), "Disable_word_list.txt")
 
 logger = logging.getLogger(__name__)
+
+# 型号/编号型 token：zx-2026、ga-90、wns2-1.25-q、kyn28；含数字且长度 >= 4 才算，避免把普通英文词当编号
+_ID_TOKEN_RE = re.compile(r"[a-z0-9]+(?:[-_.][a-z0-9]+)*")
+
+
+def exact_tokens(query: str) -> set[str]:
+    """抽取查询中的型号/编号 token（小写），供「精确编号豁免」使用。"""
+    tokens = {
+        t for t in _ID_TOKEN_RE.findall(query.lower())
+        if len(t) >= 4 and any(ch.isdigit() for ch in t)
+    }
+    return tokens
+
+
+def has_exact_hit(query: str, content: str) -> bool:
+    """片段原文是否逐字包含查询中的某个型号/编号。"""
+    if not content:
+        return False
+    tokens = exact_tokens(query)
+    if not tokens:
+        return False
+    lowered = content.lower()
+    return any(tok in lowered for tok in tokens)
 
 
 class SiliconFlowEmbeddings(Embeddings):
@@ -117,6 +141,8 @@ class RetrievedChunk:
     # 片段在 Chroma 里的定位（混合检索反查/去重用）；旧调用方只传前四个字段，故给默认值
     doc_id: int | None = None
     chunk: int | None = None
+    # 命中方式：vector=向量相似度；exact=查询里的型号/编号在片段原文逐字出现（见 RAG_HYBRID_EXACT_BYPASS）
+    match: str = "vector"
 
 
 class RAGService:
@@ -128,8 +154,15 @@ class RAGService:
         self._sync_to_chroma(doc)
         return doc
 
-    def list_documents(self, db: Session):
-        return db.query(KnowledgeDocument).order_by(KnowledgeDocument.id.desc()).all()
+    def list_documents(self, db: Session, offset: int = 0, limit: int | None = None):
+        """按 id 倒序返回文档；limit 为 None 时返回全部（保持旧调用方语义）。"""
+        q = db.query(KnowledgeDocument).order_by(KnowledgeDocument.id.desc())
+        if limit is not None:
+            q = q.offset(max(offset, 0)).limit(limit)
+        return q.all()
+
+    def count_documents(self, db: Session) -> int:
+        return db.query(KnowledgeDocument).count()
     # ── 检索链路 ─────────────────────────────────────────────────────────
     # 第一代 jieba 关键词检索（原先整段注释在这里：jieba 分词 → MySQL LIKE → 命中词数排序）
     # 已重构进 app/services/hybrid_service.py：分词保留（jieba.lcut_for_search + 正则整体保留
@@ -189,9 +222,15 @@ class RAGService:
                     logger.warning("RAG rerank 调用失败，回退 cosine 检索：%s", exc)
             # is_available() 为 False 时加载失败原因已在 rerank_service 里打过 warning
 
-        # 纯 cosine 路径（默认）：混合检索只扩大候选池，排序/阈值仍按 cosine
-        passed = [c for c in chunks if c.score >= settings.RAG_SCORE_THRESHOLD]
-        passed.sort(key=lambda c: c.score, reverse=True)
+        # 纯 cosine 路径（默认）：混合检索只扩大候选池，排序/阈值仍按 cosine；
+        # 唯「精确编号命中」例外——这类片段余弦分天然偏低（实测 0.42），过不了 0.53 的闸门，
+        # 但确定性比相似度高得多，按 RAG_HYBRID_EXACT_BYPASS 放行并排在前面。
+        bypass = settings.RAG_HYBRID_EXACT_BYPASS
+        passed = [
+            c for c in chunks
+            if c.score >= settings.RAG_SCORE_THRESHOLD or (bypass and c.match == "exact")
+        ]
+        passed.sort(key=lambda c: (c.match == "exact", c.score), reverse=True)
         return passed[:feed_topk]
 
     def rerank_state(self, use_rerank: bool | None = None) -> tuple[bool, bool, str]:
@@ -333,6 +372,12 @@ class RAGService:
                 doc_id=hybrid_doc.doc_id,
                 chunk=hybrid_doc.chunk,
             ))
+        if settings.RAG_HYBRID_EXACT_BYPASS:
+            # 只标注「原文逐字包含查询编号」的片段，不改变它的 cosine 分数（分数仍真实可比）
+            chunks = [
+                replace(c, match="exact") if has_exact_hit(query, c.content) else c
+                for c in chunks
+            ]
         return chunks
 
     def build_context(self, docs):

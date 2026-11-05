@@ -19,3 +19,12 @@ class KnowledgeUpdate(BaseModel):
     title: str | None = None
     content: str | None = None
     source: str | None = None
+
+
+class KnowledgePage(BaseModel):
+    """分页响应：给前端表格用，total 供分页条计算页数。"""
+
+    items: list[KnowledgeOut]
+    total: int
+    page: int
+    page_size: int

@@ -69,6 +69,12 @@ class CrossEncoderReranker:
                 self._load_error = f"缺少 torch/transformers 依赖：{exc}"
                 logger.warning("RAG rerank 不可用，回退 cosine 检索：%s", self._load_error)
                 return False
+            # torch 默认继承 OMP_NUM_THREADS：start.ps1 为 numpy 设成 1 后，精排会退化成单线程
+            # （同一批 500 字片段实测 19.7 s vs 4 线程 6.3 s）。这里显式设定，且留出可配置上限。
+            threads = int(getattr(settings, "RAG_RERANK_TORCH_THREADS", 4) or 0)
+            if threads > 0:
+                torch.set_num_threads(threads)
+                logger.info("RAG rerank 使用 torch 线程数：%d", threads)
             try:
                 model_ref = self._model_ref()
                 tokenizer = AutoTokenizer.from_pretrained(model_ref)
