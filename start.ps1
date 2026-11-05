@@ -21,12 +21,16 @@ if (-not $node) {
 if (Test-Port 8000) {
     Write-Host "backend  :8000 已在运行，跳过"
 } else {
-    $uvicorn = Join-Path $backend ".venv\Scripts\uvicorn.exe"
-    if (-not (Test-Path $uvicorn)) {
-        throw "缺少 $uvicorn ：请先在 llmops-backend 目录执行 python -m venv .venv 并安装 requirements.txt。"
+    $venvPython = Join-Path $backend ".venv\Scripts\python.exe"
+    if (-not (Test-Path $venvPython)) {
+        throw "缺少 $venvPython ：请先在 llmops-backend 目录执行 python -m venv .venv 并安装 requirements.txt。"
     }
-    Start-Process -FilePath $uvicorn `
-        -ArgumentList "app.main:app", "--host", "127.0.0.1", "--port", "8000" `
+    # 用 python -m uvicorn 而不是 uvicorn.exe：venv 被整体搬动后，Scripts\*.exe 启动器里仍写死旧路径
+    # 该 venv 的 numpy/OpenBLAS 默认按 16 核开线程时会报 Memory allocation failed，限制为 1 线程最稳
+    $env:OPENBLAS_NUM_THREADS = "1"
+    $env:OMP_NUM_THREADS = "1"
+    Start-Process -FilePath $venvPython `
+        -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000" `
         -WorkingDirectory $backend -WindowStyle Hidden `
         -RedirectStandardOutput (Join-Path $root "backend.log") `
         -RedirectStandardError  (Join-Path $root "backend.err.log")
