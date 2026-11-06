@@ -127,6 +127,7 @@ class ChatService:
             "score_mode": "off",
             "rerank_requested": False,
             "rerank_available": False,
+            "timings": {},
         }
 
     def _apply_rag(self, db: Session, req: ChatRequest, ctx: dict) -> None:
@@ -136,7 +137,10 @@ class ChatService:
             workflow_reasoning.append("步骤5：未启用 RAG，直接调用模型。")
             return
         # search() 内部已完成「取宽候选 → 按阈值过滤 → 截断」，此处不再重复过滤
-        rag_docs = self.rag.search(db, req.query, use_rerank=req.use_rerank)
+        # timing 只写不读：把检索/精排耗时直接记到本轮 ctx 里，供日志与响应展示
+        rag_docs = self.rag.search(
+            db, req.query, use_rerank=req.use_rerank, timing=ctx.get("timings"),
+        )
         ctx["rag_docs"] = rag_docs
         rerank_requested, rerank_available, score_mode = self.rag.rerank_state(req.use_rerank)
         ctx["score_mode"] = score_mode
@@ -190,7 +194,7 @@ class ChatService:
         return "已调用 DeepSeek 云端 API 模式，并完成 Prompt/RAG/会话记忆/日志流程。"
 
     def _save_success_log(self, db: Session, req: ChatRequest, ctx: dict, answer: str,
-                          total_tokens: int, latency_ms: int) -> None:
+                          total_tokens: int, latency_ms: int, timings: dict | None = None) -> None:
         db.add(
             ChatLog(
                 conversation_id=req.conversation_id,
@@ -201,6 +205,7 @@ class ChatService:
                 prompt_name=ctx["prompt_name"],
                 total_tokens=total_tokens,
                 latency_ms=latency_ms,
+                timings=timings or None,
                 status="success",
             )
         )
@@ -208,7 +213,8 @@ class ChatService:
         self._ensure_conversation(db, req.conversation_id, req.query)
 
     def _save_failed_log(self, db: Session, req: ChatRequest, ctx: dict | None,
-                         partial_answer: str, latency_ms: int, error: Exception) -> None:
+                         partial_answer: str, latency_ms: int, error: Exception,
+                         timings: dict | None = None) -> None:
         db.add(
             ChatLog(
                 conversation_id=req.conversation_id,
@@ -219,6 +225,7 @@ class ChatService:
                 prompt_name=(ctx or {}).get("prompt_name"),
                 total_tokens=0,
                 latency_ms=latency_ms,
+                timings=timings or None,
                 status="failed",
                 error_message=str(error),
             )
@@ -228,10 +235,15 @@ class ChatService:
     def chat(self, db: Session, req: ChatRequest):
         """非流式对话（保留给旧前端 / 流式失败时的降级路径）。"""
         start = time.time()
+        timings: dict = {}
+        t_prepare = time.perf_counter()
         ctx = self._prepare(db, req)
+        timings["prepare_ms"] = int((time.perf_counter() - t_prepare) * 1000)
+        ctx["timings"] = timings
         self._apply_rag(db, req, ctx)
         try:
             ctx["workflow_reasoning"].append("步骤6：调用大模型生成回答。")
+            t_llm = time.perf_counter()
             result = self.llm.chat(
                 query=ctx["final_query"],
                 system_prompt=ctx["system_prompt"],
@@ -241,8 +253,12 @@ class ChatService:
                 top_p=ctx["top_p"],
                 history=ctx["history"],
             )
+            timings["llm_ms"] = int((time.perf_counter() - t_llm) * 1000)
             latency_ms = int((time.time() - start) * 1000)
-            self._save_success_log(db, req, ctx, result["answer"], result["total_tokens"], latency_ms)
+            timings["total_ms"] = latency_ms
+            self._save_success_log(
+                db, req, ctx, result["answer"], result["total_tokens"], latency_ms, timings,
+            )
             ctx["workflow_reasoning"].append("步骤7：模型回答生成完成。")
             ctx["workflow_reasoning"].append("步骤8：将调用日志写入数据库。")
             ctx["workflow_reasoning"].append(f"步骤9：本次调用耗时 {latency_ms} ms。")
@@ -261,10 +277,12 @@ class ChatService:
                 "score_mode": ctx.get("score_mode"),
                 "rerank_requested": ctx.get("rerank_requested"),
                 "rerank_available": ctx.get("rerank_available"),
+                "timings": timings,
             }
         except Exception as e:
             latency_ms = int((time.time() - start) * 1000)
-            self._save_failed_log(db, req, ctx, "", latency_ms, e)
+            timings["total_ms"] = latency_ms
+            self._save_failed_log(db, req, ctx, "", latency_ms, e, timings)
             raise
 
     def stream(self, db: Session, req: ChatRequest):
@@ -274,13 +292,17 @@ class ChatService:
         → reasoning/delta* → done；异常时产出 error（并写 failed 日志）。
         """
         start = time.time()
+        timings: dict = {}
         ctx: dict | None = None
         answer_parts: list[str] = []
         reasoning_parts: list[str] = []
         first_token_ms: int | None = None
         try:
             yield {"event": "status", "data": {"phase": "preparing"}}
+            t_prepare = time.perf_counter()
             ctx = self._prepare(db, req)
+            timings["prepare_ms"] = int((time.perf_counter() - t_prepare) * 1000)
+            ctx["timings"] = timings
             if req.use_rag:
                 yield {"event": "status", "data": {"phase": "retrieving"}}
             self._apply_rag(db, req, ctx)
@@ -301,6 +323,7 @@ class ChatService:
             ctx["workflow_reasoning"].append("步骤6：调用大模型生成回答（流式）。")
             yield {"event": "status", "data": {"phase": "generating"}}
 
+            t_llm = time.perf_counter()
             model_stream = self.llm.chat_stream(
                 query=ctx["final_query"],
                 system_prompt=ctx["system_prompt"],
@@ -343,7 +366,10 @@ class ChatService:
             )
             total_tokens = int(result.get("total_tokens") or 0)
             latency_ms = int((time.time() - start) * 1000)
-            self._save_success_log(db, req, ctx, answer, total_tokens, latency_ms)
+            timings["llm_ms"] = int((time.perf_counter() - t_llm) * 1000)
+            timings["first_token_ms"] = first_token_ms
+            timings["total_ms"] = latency_ms
+            self._save_success_log(db, req, ctx, answer, total_tokens, latency_ms, timings)
             provider = result.get("model_provider") or ctx["provider"]
             done = {
                 "answer": answer,
@@ -361,14 +387,16 @@ class ChatService:
                 "score_mode": ctx.get("score_mode"),
                 "rerank_requested": ctx.get("rerank_requested"),
                 "rerank_available": ctx.get("rerank_available"),
+                "timings": timings,
             }
             logger.info(
-                "chat.stream done provider=%s model=%s ttft_ms=%s latency_ms=%s tokens=%s",
-                done["model_provider"], done["model_name"], first_token_ms, latency_ms, total_tokens,
+                "chat.stream done provider=%s model=%s ttft_ms=%s latency_ms=%s tokens=%s timings=%s",
+                done["model_provider"], done["model_name"], first_token_ms, latency_ms, total_tokens, timings,
             )
             yield {"event": "done", "data": done}
         except Exception as exc:
             logger.exception("chat.stream failed")
             latency_ms = int((time.time() - start) * 1000)
-            self._save_failed_log(db, req, ctx, "".join(answer_parts), latency_ms, exc)
+            timings["total_ms"] = latency_ms
+            self._save_failed_log(db, req, ctx, "".join(answer_parts), latency_ms, exc, timings)
             yield {"event": "error", "data": {"message": str(exc), "latency_ms": latency_ms}}

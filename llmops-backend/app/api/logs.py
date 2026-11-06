@@ -29,6 +29,7 @@ def list_logs(page: int = 1, page_size: int = 10, status: str | None = None, db:
                 "prompt_name": row.prompt_name,
                 "total_tokens": row.total_tokens,
                 "latency_ms": row.latency_ms,
+                "timings": row.timings,
                 "status": row.status,
                 "error_message": row.error_message,
                 "created_at": row.created_at,

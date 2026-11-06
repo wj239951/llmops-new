@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """聊天接口回归测试（鉴权 + RAG 三态），LLM/RAG 全 mock，不碰 Ollama/Chroma/MySQL。"""
 from app.services.llm_service import LLMService
 from app.services.rag_service import RAGService, RetrievedChunk
@@ -28,7 +28,7 @@ def test_chat_rejects_wrong_auth(client):
 
 def test_chat_no_hit(client, auth_headers, monkeypatch):
     monkeypatch.setattr(LLMService, "chat", lambda self, **kw: FAKE_RESULT)
-    monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None: [])
+    monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None, timing=None: [])
 
     r = client.post(
         "/api/chat",
@@ -47,7 +47,7 @@ def test_chat_hit(client, auth_headers, monkeypatch):
     monkeypatch.setattr(
         RAGService,
         "search",
-        lambda self, db, query, use_rerank=None: [RetrievedChunk(title="标题", content="内容", source=None, score=0.7)],
+        lambda self, db, query, use_rerank=None, timing=None: [RetrievedChunk(title="标题", content="内容", source=None, score=0.7)],
     )
 
     r = client.post(
@@ -77,7 +77,7 @@ def test_chat_weak_hit_when_top1_barely_passes(client, auth_headers, monkeypatch
     monkeypatch.setattr(
         RAGService,
         "search",
-        lambda self, db, query, use_rerank=None: [RetrievedChunk(title="标题", content="内容", source=None, score=barely)],
+        lambda self, db, query, use_rerank=None, timing=None: [RetrievedChunk(title="标题", content="内容", source=None, score=barely)],
     )
 
     r = client.post(
@@ -101,7 +101,7 @@ def test_chat_hit_boundary_is_inclusive(client, auth_headers, monkeypatch):
     monkeypatch.setattr(
         RAGService,
         "search",
-        lambda self, db, query, use_rerank=None: [RetrievedChunk(title="标题", content="内容", source=None, score=edge)],
+        lambda self, db, query, use_rerank=None, timing=None: [RetrievedChunk(title="标题", content="内容", source=None, score=edge)],
     )
     r = client.post(
         "/api/chat",

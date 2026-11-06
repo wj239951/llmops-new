@@ -136,6 +136,13 @@ style="margin-top: 10px"
                   style="margin-top: 8px"
                 />
                 <el-alert
+                  v-if="timingsText"
+                  :title="`耗时拆解：${timingsText}`"
+                  type="info"
+                  :closable="false"
+                  style="margin-top: 8px"
+                />
+                <el-alert
                   v-if="rerankRequested && rerankAvailable === false"
                   title="已请求精排，但服务端精排不可用，本次已回退为向量余弦"
                   type="warning"
@@ -183,7 +190,7 @@ style="margin-top: 10px"
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChatMessage, ChatRequestPayload, Conversation, Prompt, RagStatus, Source } from '../types'
+import type { ChatMessage, ChatRequestPayload, Conversation, PhaseTimings, Prompt, RagStatus, Source } from '../types'
 import { getChatOptions, sendChat, sendChatStream } from '../api/chat'
 import { listPrompts } from '../api/prompt'
 import { listConversations, createConversation, getMessages, deleteConversation } from '../api/conversations'
@@ -202,6 +209,8 @@ const serverRerankEnabled = ref(false)
 const serverRerankModel = ref('')
 // 本次请求的实际打分信息（来自 meta / done / 非流式响应）
 const scoreMode = ref('')
+// 本次请求的阶段耗时文案（检索 / 精排 / 生成 / 首字），空串表示没有数据
+const timingsText = ref('')
 const rerankRequested = ref(false)
 const rerankAvailable = ref<boolean | null>(null)
 const scoreModeText = computed(() => {
@@ -246,6 +255,23 @@ function applyScoreInfo(info: {
   rerankAvailable.value = info.rerank_available ?? null
 }
 
+/** 毫秒转短文本：1200 → 1.2s */
+function fmtMs(ms?: number | null): string {
+  if (!ms || ms <= 0) return ''
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`
+}
+
+/** 阶段耗时拆解：检索 / 精排 / 生成 / 首字，只显示有值的项 */
+function formatTimings(t?: PhaseTimings | null): string {
+  if (!t) return ''
+  return [
+    t.retrieve_ms ? `检索 ${fmtMs(t.retrieve_ms)}` : '',
+    t.rerank_ms ? `精排 ${fmtMs(t.rerank_ms)}` : '',
+    t.llm_ms ? `生成 ${fmtMs(t.llm_ms)}` : '',
+    t.first_token_ms ? `首字 ${fmtMs(t.first_token_ms)}` : '',
+  ].filter(Boolean).join(' · ')
+}
+
 /** 把后端 status 事件的 phase 翻译成用户可读的阶段文案 */
 function streamPhaseText(phase: 'preparing' | 'retrieving' | 'generating'): string {
   if (phase === 'retrieving') return '正在检索知识库…'
@@ -280,6 +306,7 @@ async function newConversation() {
   sources.value = []
   ragStatus.value = 'off'
   scoreMode.value = ''
+  timingsText.value = ''
   rerankRequested.value = false
   rerankAvailable.value = null
 }
@@ -307,6 +334,7 @@ async function deleteCurrentConversation() {
   sources.value = []
   ragStatus.value = 'off'
   scoreMode.value = ''
+  timingsText.value = ''
   rerankRequested.value = false
   rerankAvailable.value = null
   await loadConversations()
@@ -322,6 +350,7 @@ async function submit() {
   sourcesExpanded.value = false
   ragStatus.value = 'off'
   scoreMode.value = ''
+  timingsText.value = ''
   rerankRequested.value = false
   rerankAvailable.value = null
   const ctrl = new AbortController()
@@ -371,6 +400,7 @@ async function submit() {
             if (d.conversation_id) form.conversation_id = d.conversation_id
             meta.value = `${d.model_provider} / ${d.model_name} / tokens=${d.total_tokens} / ${d.latency_ms}ms`
             applyScoreInfo(d)
+            timingsText.value = formatTimings(d.timings)
           },
           onError(message) {
             streamError = message || '流式生成失败'
@@ -404,6 +434,7 @@ async function submit() {
         ragStatus.value = res.rag_status ?? 'off'
         meta.value = `${res.model_provider} / ${res.model_name} / tokens=${res.total_tokens} / ${res.latency_ms}ms`
         applyScoreInfo(res)
+        timingsText.value = formatTimings(res.timings)
       } else if (!streamError) {
         // 已经有内容但流没给 done 就断开：保留已有内容，提示可能不完整
         ElMessage.error('流式输出中断，回答可能不完整')

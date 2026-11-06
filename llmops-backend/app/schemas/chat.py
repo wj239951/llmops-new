@@ -39,4 +39,6 @@ class ChatResponse(BaseModel):
     score_mode: str | None = None
     rerank_requested: bool | None = None
     rerank_available: bool | None = None
+    # 阶段耗时（ms）：prepare / retrieve / rerank / llm / first_token / total
+    timings: dict | None = None
     ##

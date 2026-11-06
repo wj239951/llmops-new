@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """精排请求级开关（ChatRequest.use_rerank）测试。"""
 from app.core.config import settings
 from app.services.rag_service import RAGService
@@ -41,7 +41,7 @@ def test_chat_response_reports_requested_but_unavailable(client, auth_headers, m
         "model_name": settings.OLLAMA_MODEL,
         "total_tokens": 1,
     })
-    monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None: [])
+    monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None, timing=None: [])
     from app.services import rerank_service
     monkeypatch.setattr(rerank_service, "is_available", lambda force=False: False)
 

@@ -94,6 +94,8 @@ export interface ChatResponse {
   rerank_requested?: boolean | null
   /** 服务端精排是否真的可用（false 时已回退余弦） */
   rerank_available?: boolean | null
+  /** 阶段耗时（ms），用于展示“时间花在哪” */
+  timings?: PhaseTimings | null
 }
 
 /** RAG 判定四态：off=未启用，no_hit=启用但无过阈值片段，
@@ -130,6 +132,7 @@ export interface ChatStreamDone {
   score_mode?: string | null
   rerank_requested?: boolean | null
   rerank_available?: boolean | null
+  timings?: PhaseTimings | null
 }
 
 /** 聊天页可选项（对应 GET /api/chat/options） */
@@ -158,6 +161,16 @@ export interface ChatMessage {
   created_at: string
 }
 
+/** 阶段耗时（毫秒）。老数据没有这一列，所以字段都可选 */
+export interface PhaseTimings {
+  prepare_ms?: number
+  retrieve_ms?: number
+  rerank_ms?: number
+  llm_ms?: number
+  first_token_ms?: number | null
+  total_ms?: number
+}
+
 /** 运行日志条目（logs 接口返回项） */
 export interface ChatLog {
   id: number
@@ -168,6 +181,7 @@ export interface ChatLog {
   prompt_name: string | null
   total_tokens: number
   latency_ms: number
+  timings?: PhaseTimings | null
   status: string
   error_message: string | null
   created_at: string

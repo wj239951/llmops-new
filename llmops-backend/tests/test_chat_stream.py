@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """流式聊天测试：SSE 事件顺序、RAG 元数据、错误兜底与日志落库，LLM/RAG 全 mock。"""
 import json
 
@@ -57,7 +57,7 @@ def test_stream_requires_auth(client):
 
 def test_stream_event_order_and_meta(client, auth_headers, monkeypatch):
     monkeypatch.setattr(LLMService, "chat_stream", _fake_stream)
-    monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None: [])
+    monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None, timing=None: [])
 
     with client.stream(
         "POST",
@@ -95,7 +95,7 @@ def test_stream_meta_reports_hit_and_sources(db_session, monkeypatch):
     monkeypatch.setattr(
         RAGService,
         "search",
-        lambda self, db, query, use_rerank=None: [
+        lambda self, db, query, use_rerank=None, timing=None: [
             RetrievedChunk(title="巡检手册", content="润滑脂用 RL-2077", source=None, score=0.8)
         ],
     )
@@ -113,7 +113,7 @@ def test_stream_meta_reports_hit_and_sources(db_session, monkeypatch):
 
 def test_stream_saves_success_log(db_session, monkeypatch):
     monkeypatch.setattr(LLMService, "chat_stream", _fake_stream)
-    monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None: [])
+    monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None, timing=None: [])
 
     service = ChatService()
     events = list(service.stream(db_session, ChatRequest(query="你好", use_rag=False)))
@@ -126,7 +126,7 @@ def test_stream_saves_success_log(db_session, monkeypatch):
 
 def test_stream_error_event_and_failed_log(db_session, monkeypatch):
     monkeypatch.setattr(LLMService, "chat_stream", _failing_stream)
-    monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None: [])
+    monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None, timing=None: [])
 
     service = ChatService()
     events = list(service.stream(db_session, ChatRequest(query="你好", use_rag=False)))

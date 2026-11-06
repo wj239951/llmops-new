@@ -16,6 +16,7 @@ import chromadb
 #import jieba
 import logging
 import os
+import time
 
 # 在文件顶部读取
 stop_words_file = os.path.join(str(os.path.dirname(__file__)), "Disable_word_list.txt")
@@ -169,7 +170,7 @@ class RAGService:
     # 型号/编号），排序升级为 BM25，并与 bge-m3 向量召回做 RRF 融合；RAG_HYBRID_ENABLED 控制
     # 是否启用（默认关闭），依赖/索引不可用时自动回退纯向量。
     def search(self, db: Session, query: str, limit: int | None = None,
-               use_rerank: bool | None = None):
+               use_rerank: bool | None = None, timing: dict | None = None):
         """检索：宽召回（可选混合）→（可选）精排 → 阈值过滤 → 截断。
 
         过滤收在这一层而不是调用方，是为了先取宽候选再截断：
@@ -178,6 +179,8 @@ class RAGService:
         候选池：RAG_HYBRID_ENABLED=true 且索引可用时 = 向量召回 + BM25 关键词召回 RRF 融合；
         否则 = 纯 bge-m3 向量召回。精排开启时（RAG_RERANK_ENABLED=true）再对候选池成对重打分。
         任一可选环节的依赖/权重/索引缺失都会自动回退，不影响服务可用性。
+
+        timing 传入一个 dict 时，会把 retrieve_ms / rerank_ms 写进去（只写不读，线程安全）。
         """
         if not query.strip():
             return []
@@ -188,6 +191,7 @@ class RAGService:
         else:
             candidate_k = max(feed_topk, settings.RAG_CANDIDATE_K)
 
+        t_retrieve = time.perf_counter()
         chunks: list[RetrievedChunk] | None = None
         if settings.RAG_HYBRID_ENABLED:
             # 延迟导入：未启用时 hybrid_service / jieba 不参与启动
@@ -206,8 +210,11 @@ class RAGService:
                 # 并把真实原因留在日志里，避免静默失败。
                 logger.warning("RAG 向量检索失败，本轮按空上下文处理：%s", exc)
                 return []
+        if timing is not None:
+            timing["retrieve_ms"] = int((time.perf_counter() - t_retrieve) * 1000)
 
         if rerank_requested:
+            t_rerank = time.perf_counter()
             # 延迟导入：没装 torch/transformers 时不影响服务启动
             from app.services import rerank_service
             if rerank_available:
@@ -217,9 +224,13 @@ class RAGService:
                         c for c in reranked
                         if c.score >= settings.RAG_RERANK_SCORE_THRESHOLD
                     ]
+                    if timing is not None:
+                        timing["rerank_ms"] = int((time.perf_counter() - t_rerank) * 1000)
                     return passed[:feed_topk]
                 except Exception as exc:  # pragma: no cover - 运行时保护
                     logger.warning("RAG rerank 调用失败，回退 cosine 检索：%s", exc)
+            if timing is not None:
+                timing["rerank_ms"] = int((time.perf_counter() - t_rerank) * 1000)
             # is_available() 为 False 时加载失败原因已在 rerank_service 里打过 warning
 
         # 纯 cosine 路径（默认）：混合检索只扩大候选池，排序/阈值仍按 cosine；
