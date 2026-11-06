@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "set": "qa",
+    "generated_at": "2026-11-06T08:16:41",
+    "questions": 45,
+    "answerable": 37,
+    "no_answer": 8,
+    "candidate_k": 6,
+    "feed_topk": 3,
+    "threshold_cosine": 0.53,
+    "threshold_rerank": 0.76,
+    "git_commit": "unknown"
+  },
+  "results": {
+    "dense": {
+      "mode": "dense",
+      "total": 45,
+      "answerable": 37,
+      "no_answer": 8,
+      "recall_at_candidate_pct": 100.0,
+      "mrr": 1.0,
+      "hit_at_feed_pct": 100.0,
+      "coverage_pct": 100.0,
+      "false_accept_pct": 100.0,
+      "false_accept_ids": [
+        "q38",
+        "q39",
+        "q40",
+        "q41",
+        "q42",
+        "q43",
+        "q44",
+        "q45"
+      ],
+      "missed_ids": [],
+      "latency_p50_ms": 39.0,
+      "latency_p95_ms": 45.0,
+      "answerable_top1_min": 0.5808,
+      "no_answer_top1_max": 0.679,
+      "elapsed_s": 2.0
+    },
+    "hybrid": {
+      "mode": "hybrid",
+      "total": 45,
+      "answerable": 37,
+      "no_answer": 8,
+      "recall_at_candidate_pct": 100.0,
+      "mrr": 1.0,
+      "hit_at_feed_pct": 100.0,
+      "coverage_pct": 100.0,
+      "false_accept_pct": 100.0,
+      "false_accept_ids": [
+        "q38",
+        "q39",
+        "q40",
+        "q41",
+        "q42",
+        "q43",
+        "q44",
+        "q45"
+      ],
+      "missed_ids": [],
+      "latency_p50_ms": 44.0,
+      "latency_p95_ms": 74.8,
+      "answerable_top1_min": 0.5808,
+      "no_answer_top1_max": 0.679,
+      "elapsed_s": 2.9
+    },
+    "rerank": {
+      "mode": "rerank",
+      "total": 45,
+      "answerable": 37,
+      "no_answer": 8,
+      "recall_at_candidate_pct": 100.0,
+      "mrr": 1.0,
+      "hit_at_feed_pct": 97.3,
+      "coverage_pct": 97.3,
+      "false_accept_pct": 0.0,
+      "false_accept_ids": [],
+      "missed_ids": [
+        "q02"
+      ],
+      "latency_p50_ms": 8202.0,
+      "latency_p95_ms": 8676.4,
+      "answerable_top1_min": 0.7817,
+      "no_answer_top1_max": 0.0,
+      "elapsed_s": 396.8
+    }
+  }
+}

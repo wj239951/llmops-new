@@ -3,7 +3,7 @@
 > 一个可本地部署的一站式 LLMOps 平台：**Prompt 管理 + 知识库 RAG + 多模型对话 + 会话记忆 + 调用日志**。
 > 后端 FastAPI，前端 Vue3 + TypeScript，向量检索 Chroma（bge-m3），元数据 MySQL 8。
 
-`后端 pytest 36 passed` · `前端 vue-tsc / vite build 通过` · `对话 SSE 流式输出` · `精排请求级开关` · `RAG 评测 75 题 · 混合检索 + rerank` · `Docker Compose 一键启动` · `支持 Windows 原生部署`
+`后端 pytest 52 passed` · `前端 vue-tsc / vite build 通过` · `对话 SSE 流式输出` · `精排请求级开关` · `三模式检索评测一条命令复现` · `Docker Compose 一键启动` · `支持 Windows 原生部署`
 
 ---
 
@@ -17,6 +17,18 @@
 - **怎么保证两套存储不打架**：MySQL 与 Chroma 的写/删同步，孤儿向量会被记录而不是静默吞掉。
 
 阈值、余量、候选池不是拍出来的数字：仓库内置 75 条评测集（45 条自然语言 + 15 条精确编号 + 15 条搜索框短查询）、可复现的检索评测脚本与三级检索实验（见 [docs/04.评测报告](docs/04.评测报告.md)、[docs/05.Rerank实验报告](docs/05.Rerank实验报告.md)、[docs/06.混合检索实验报告](docs/06.混合检索实验报告.md)），基线数字、阈值扫描与局限都写在报告里。
+
+## 量化结果（一条命令复现）
+
+| 检索模式 | Recall@6 | 命中率 | 无答案误放行 | P95 延迟 |
+| --- | --- | --- | --- | --- |
+| 纯向量 cosine | 100% | 100% | **100%** | 45 ms |
+| + BM25 混合检索（RRF） | 100% | 100% | **100%** | 75 ms |
+| + bge-reranker 精排 | 100% | 97.3% | **0%** | 8.7 s |
+
+- 45 题（37 可答 + 8 无答案）；答案相关性用 LLM-as-judge 抽样 10 题，均分 **4.6 / 5**，4 分以上占 90%。
+- 结论：**召回不是瓶颈（三种模式 Recall@6 都是 100%），闸门才是**——纯余弦把 8 条无答案问题全部放行；精排用 2.7 个点的命中率换掉 100% 的误放行，代价是 P95 从 45 ms 涨到 8.7 s，因此做成请求级开关（默认关）。
+- 复现：`cd llmops-backend && python -m eval run --modes dense,hybrid,rerank`；指标退化则退出码非 0：`--gate eval_results/baseline/summary.json`。
 
 ## 架构
 

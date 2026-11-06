@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  backend-tests:
+    name: 后端单测 + 评测集校验
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: llmops-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: llmops-backend/requirements.txt
+
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+
+      # 单测全程 mock：不连 MySQL / Chroma / Ollama，几十秒内跑完
+      - name: 单元测试
+        run: python -m pytest -q
+
+      # 评测集格式校验：题目标签写错时在 CI 就挂掉，而不是跑完 10 分钟才发现
+      - name: 评测集校验
+        run: python -m eval check
+
+  frontend-build:
+    name: 前端类型检查 + 构建
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: llmops-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: llmops-frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm run build
+
+  # 检索评测需要 MySQL + Chroma + Ollama（含 embedding 模型），GitHub 托管 runner 跑不了。
+  # 有两种接法：
+  #   1) 自建 runner：把 labels 改成 [self-hosted, llmops] 并放开下面这段；
+  #   2) 在本地/服务器跑 `python -m eval run --gate eval_results/baseline/summary.json`，
+  #      把退出码接进发布流程（0 通过 / 1 退化）。
+  #
+  # rag-eval-gate:
+  #   name: 检索指标回归门禁
+  #   runs-on: [self-hosted, llmops]
+  #   defaults:
+  #     run:
+  #       working-directory: llmops-backend
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: 跑评测并对比基线
+  #       run: |
+  #         python -m eval run --modes dense,hybrid,rerank \
+  #           --gate eval_results/baseline/summary.json \
+  #           --out eval_results/ci

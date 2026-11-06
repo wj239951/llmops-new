@@ -16,6 +16,7 @@
 - [目录结构](#目录结构)
 - [数据模型](#数据模型)
 - [API 接口](#api-接口)
+- [检索评测与回归门禁](#检索评测与回归门禁)
 - [快速开始](#快速开始)
 - [配置说明](#配置说明)
 - [核心设计说明](#核心设计说明)
@@ -32,6 +33,7 @@
 | **会话记忆** | 自设计 `ChatLog + conversation_id` 方案，按会话加载最近 N 轮历史作为上下文；首次提问自动生成会话标题 |
 | **运行日志** | 记录 token 消耗、响应耗时、成功/失败状态与错误信息，支持分页与状态过滤 |
 | **Prompt 管理** | Prompt 模板 CRUD，模板内可绑定模型、temperature、top_p，对话时一键套用 |
+| **可复现的检索评测** | `eval/` 一条命令跑 dense / hybrid / rerank 三模式，输出 Recall@K、MRR、误放行、P50/P95；支持 LLM-as-judge 答案评分与指标回归门禁（退化即失败） |
 
 ---
 
@@ -131,7 +133,18 @@ llmops-backend/
 │       ├── rag_service.py      # 向量检索 + 上下文拼接 + Chroma 同步
 │       ├── prompt_service.py   # Prompt CRUD
 │       ├── file_parser.py      # 文件解析（PDF / TXT / MD / PY / JSON）
+│       ├── hybrid_service.py   # BM25 稀疏召回 + RRF 融合（可选）
+│       ├── rerank_service.py   # bge-reranker 精排（可选依赖）
 │       └── Disable_word_list.txt  # 停用词表（关键词检索方案使用）
+├── eval/                       # 检索评测：黄金集 + 指标 + 报告 + 门禁
+│   ├── golden/                 # qa.jsonl（45 题）/ hard.jsonl / token.jsonl
+│   ├── runner.py               # 复用生产检索链路逐模式跑题
+│   ├── metrics.py              # Recall@K / MRR / 命中率 / 误放行 / 分位延迟
+│   ├── judge.py                # LLM-as-judge 答案相关性评分
+│   ├── cost.py                 # token → 成本换算
+│   └── report.py               # Markdown / JSON 产物 + 回归门禁
+├── tests/                      # pytest：全 mock，不依赖 MySQL / Chroma / Ollama
+├── tools/                      # 历史离线实验脚本（阈值扫描、rerank/hybrid 对比）
 ├── .env.example                # 环境变量模板（真实 .env 已被 gitignore）
 ├── requirements.txt
 └── run.py                      # 启动入口（uvicorn，端口 8000）
@@ -279,6 +292,60 @@ llmops-backend/
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/api/logs?page=1&page_size=10&status=success` | 分页查询日志，`status` 可选（`success` / `failed`） |
+
+---
+
+## 检索评测与回归门禁
+
+> 检索层改一个阈值、换一个 embedding、加一路召回，效果到底变好还是变坏？靠感觉不行，得靠同一套题、同一套口径复测。`eval/` 就是干这个的。
+
+### 一条命令跑完三模式
+
+```bash
+cd llmops-backend
+python -m eval run --modes dense,hybrid,rerank          # 产物在 eval_results/<时间戳>/
+python -m eval run --set token --modes dense,hybrid     # 短查询集（只输型号/编号）
+python -m eval run --judge --judge-limit 10             # 额外跑 LLM-as-judge 答案评分
+```
+
+产物：`summary.json`（可直接做基线）、`per_query.csv`（逐题明细）、`report.md`（可贴进 PR / README 的表）。
+
+### 基线结果（45 题：37 可答 + 8 无答案，2026-11-06）
+
+| 模式 | Recall@6 | MRR | 命中率 | 误放行 | P50 | P95 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 纯向量（dense） | 100% | 1.000 | 100% | **100%** | 39 ms | 45 ms |
+| 混合检索（hybrid） | 100% | 1.000 | 100% | **100%** | 44 ms | 75 ms |
+| 混合 + 精排（rerank） | 100% | 1.000 | **97.3%** | **0%** | 8202 ms | 8676 ms |
+
+结论（也是这个项目最想说明的一点）：
+
+1. **召回不是瓶颈，闸门才是。** 三种模式的 Recall@6 都是 100%，但纯余弦把 8 条无答案问题**全部**放行（误放行 100%），回答里就会出现“知识库没有、模型硬编”的内容。
+2. **精排用 2.7 个点的命中率，换掉 100% 的误放行**：命中率 100% → 97.3%（漏掉的 `q02` 是改写题），误放行 100% → 0%。
+3. **这个取舍的价格是延迟**：P95 从 45 ms 涨到 8.7 s（CPU、6 候选 × 500 字），所以精排做成了请求级开关：默认关，需要严格拒答时再开。
+
+答案质量另有一路把关：LLM-as-judge 抽样 10 题（dense 模式），均分 **4.6 / 5**，4 分以上占 90%，扣分点集中在“漏了次要细节”（如 q03 没答出具体润滑脂型号）。
+
+### 回归门禁
+
+```bash
+# 以某次结果为基线，指标退化则退出码 1（可直接接进发布流程 / 自建 runner）
+python -m eval run --modes dense,hybrid,rerank \
+  --gate eval_results/baseline/summary.json \
+  --max-hit-drop 2 --max-fa-rise 5
+```
+
+默认规则：命中率跌幅 > 2 个点、或误放行涨幅 > 5 个点即判失败。GitHub Actions 里的托管 runner 没有 MySQL/Chroma/Ollama，所以 `rag-eval-gate` 作业在 `.github/workflows/ci.yml` 中以自建 runner 的形式给出模板；CI 默认只跑单测 + 评测集格式校验（`python -m eval check`）。
+
+### 指标口径
+
+| 指标 | 定义 |
+| --- | --- |
+| Recall@K | 正确文档是否进入 K 条**候选**（K = `RAG_CANDIDATE_K`，默认 6） |
+| MRR | 正确文档在候选里首次出现名次的倒数，按可答题平均 |
+| 命中率 | 正确文档是否出现在**最终喂给模型**的片段里（过阈值 + 截断之后） |
+| 误放行 | 无答案问题仍返回了片段的占比（越低越好） |
+| P50 / P95 | 单题检索耗时（候选生成 + 精排 + 截断） |
 
 ---
 
