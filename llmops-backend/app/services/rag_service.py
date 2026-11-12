@@ -192,24 +192,9 @@ class RAGService:
             candidate_k = max(feed_topk, settings.RAG_CANDIDATE_K)
 
         t_retrieve = time.perf_counter()
-        chunks: list[RetrievedChunk] | None = None
-        if settings.RAG_HYBRID_ENABLED:
-            # 延迟导入：未启用时 hybrid_service / jieba 不参与启动
-            from app.services import hybrid_service
-            if hybrid_service.is_available():
-                try:
-                    chunks = self._hybrid_candidates(db, query, candidate_k)
-                except Exception as exc:  # pragma: no cover - 运行时保护
-                    logger.warning("RAG 混合检索失败，回退纯向量检索：%s", exc)
+        chunks = self._retrieve_candidates(db, query, candidate_k)
         if chunks is None:
-            try:
-                chunks = self._dense_chunks(db, query, candidate_k)
-            except Exception as exc:  # pragma: no cover - 运行时保护
-                # embedding 服务不可用（云端余额不足 / 网络不通 / 本地 Ollama 没起）时
-                # 不要让整个对话请求 500：降级为「本轮没有知识库内容」，让模型用通用知识回答，
-                # 并把真实原因留在日志里，避免静默失败。
-                logger.warning("RAG 向量检索失败，本轮按空上下文处理：%s", exc)
-                return []
+            return []
         if timing is not None:
             timing["retrieve_ms"] = int((time.perf_counter() - t_retrieve) * 1000)
 
@@ -219,11 +204,7 @@ class RAGService:
             from app.services import rerank_service
             if rerank_available:
                 try:
-                    reranked = rerank_service.rerank_chunks(query, chunks)
-                    passed = [
-                        c for c in reranked
-                        if c.score >= settings.RAG_RERANK_SCORE_THRESHOLD
-                    ]
+                    passed = self._rerank_passed(db, query, chunks, candidate_k)
                     if timing is not None:
                         timing["rerank_ms"] = int((time.perf_counter() - t_rerank) * 1000)
                     return passed[:feed_topk]
@@ -243,6 +224,46 @@ class RAGService:
         ]
         passed.sort(key=lambda c: (c.match == "exact", c.score), reverse=True)
         return passed[:feed_topk]
+
+    def _retrieve_candidates(self, db, query: str, candidate_k: int) -> list[RetrievedChunk] | None:
+        """候选池：开混合走 RRF 融合，否则纯向量；都失败返回 None 由调用方降级。"""
+        if settings.RAG_HYBRID_ENABLED:
+            # 延迟导入：未启用时 hybrid_service / jieba 不参与启动
+            from app.services import hybrid_service
+            if hybrid_service.is_available():
+                try:
+                    return self._hybrid_candidates(db, query, candidate_k)
+                except Exception as exc:  # pragma: no cover - 运行时保护
+                    logger.warning("RAG 混合检索失败，回退纯向量检索：%s", exc)
+        try:
+            return self._dense_chunks(db, query, candidate_k)
+        except Exception as exc:  # pragma: no cover - 运行时保护
+            # embedding 服务不可用（云端余额不足 / 网络不通 / 本地 Ollama 没起）时
+            # 不要让整个对话请求 500：降级为「本轮没有知识库内容」，让模型用通用知识回答，
+            # 并把真实原因留在日志里，避免静默失败。
+            logger.warning("RAG 向量检索失败，本轮按空上下文处理：%s", exc)
+            return None
+
+    def _rerank_passed(self, db, query: str, chunks, candidate_k: int) -> list[RetrievedChunk]:
+        """精排过闸：复合问句按主题子问句各自过闸后合并去重，单主题走原路。"""
+        from app.services import query_decompose, rerank_service
+        threshold = settings.RAG_RERANK_SCORE_THRESHOLD
+        subs = query_decompose.decompose(query)
+        if len(subs) == 1:
+            reranked = rerank_service.rerank_chunks(query, chunks)
+            return [c for c in reranked if c.score >= threshold]
+        best: dict[tuple, RetrievedChunk] = {}
+        for sub in subs:
+            sub_chunks = chunks if sub == query else self._retrieve_candidates(db, sub, candidate_k)
+            if sub_chunks is None:
+                continue
+            for c in rerank_service.rerank_chunks(sub, sub_chunks):
+                if c.score < threshold:
+                    continue
+                key = (c.doc_id, c.chunk)
+                if key not in best or c.score > best[key].score:
+                    best[key] = c
+        return sorted(best.values(), key=lambda c: c.score, reverse=True)
 
     def rerank_state(self, use_rerank: bool | None = None) -> tuple[bool, bool, str]:
         """返回（是否请求精排, 精排是否可用, 实际打分方式）。

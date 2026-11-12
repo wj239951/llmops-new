@@ -1,0 +1,69 @@
+{
+  "generated_at": "2026-11-12T10:16:10",
+  "elapsed_seconds": 25.4,
+  "model": {
+    "ref": "BAAI/bge-reranker-v2-m3 @ https://api.siliconflow.cn/v1",
+    "device": "api",
+    "load_seconds": 0.0,
+    "rerank_ms_per_query_mean": 260.0,
+    "rerank_ms_per_query_median": 259.2,
+    "rerank_ms_per_query_max": 324.4,
+    "candidate_k": 6
+  },
+  "questions": {
+    "path": "llmops-backend/eval_qa.jsonl",
+    "total": 45,
+    "answerable": 37,
+    "no_answer": 8,
+    "by_type": {
+      "exact": 21,
+      "no_answer_far": 4,
+      "no_answer_near": 4,
+      "paraphrase": 16
+    }
+  },
+  "config": {
+    "threshold": 0.76,
+    "margin": 0.06,
+    "candidate_k": 6,
+    "feed_topk": 3
+  },
+  "rerank_metrics": {
+    "recall_at_candidate_k_pct": 100.0,
+    "mrr": 1.0,
+    "coverage_pct": 97.3,
+    "hit_at_feed_pct": 97.3,
+    "top1_accuracy_pct": 97.3,
+    "top1_accuracy_among_fed_pct": 100.0,
+    "false_accept_far_pct": 0.0,
+    "false_accept_near_pct": 0.0,
+    "false_accept_all_pct": 0.0,
+    "missed_answerable_ids": [
+      "q02"
+    ],
+    "false_accepted_ids": []
+  },
+  "score_separation": {
+    "answerable_top1_min": 0.2408,
+    "answerable_top1_median": 0.9837,
+    "answerable_top1_mean": 0.9418,
+    "correct_hit_top1_min": 0.2408,
+    "no_answer_top1_max": 0.743,
+    "no_answer_top1_mean": 0.2645
+  },
+  "recommendations": {
+    "threshold": 0.75,
+    "threshold_balanced_accuracy_pct": 98.65,
+    "stable_threshold_range": [
+      0.69,
+      0.93
+    ],
+    "max_threshold_keep_full_recall": 0.24,
+    "margin": null,
+    "margin_youden_j_pct": null,
+    "margin_to_capture_all_wrong": null,
+    "margin_data_available": false,
+    "correct_downgraded_at_current_margin_pct": 5.56
+  },
+  "cosine_baseline": null
+}

@@ -242,3 +242,50 @@ docker compose exec -T mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --
 ```
 
 改了 `.env` 里的值（如 `RAG_SCORE_THRESHOLD`）要重建容器才生效：`docker compose up -d backend`。
+
+---
+
+## 十、2核2G 轻量云服务器部署（全云端，不装 Ollama）
+
+适用阿里云轻量 2vCPU/2GiB/40G ESSD + Ubuntu 24.04 这类机器。`deepseek-r1:7b` + `bge-m3` 合计约 6GB 权重在这类机器上跑不动，**三条模型链路全部走云**：对话 DeepSeek、向量化 SiliconFlow bge-m3、精排云端 `/rerank`（见 README「可选：精排走云端 API」）。后端镜像只装 `requirements.txt`，不含 torch，2G 内存够用。
+
+内存预算：MySQL ~300MB（compose 已关 performance_schema、buffer pool 128M）、backend ~400MB、nginx ~20MB、系统 + Docker ~400MB，合计 ~1.2GB；**加 2G swap 兜底**，防止构建镜像时 OOM。
+
+### 1. 系统准备
+
+```bash
+apt update && apt install -y docker.io docker-compose-v2
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+### 2. 上传项目并配 `.env`
+
+上传解压到 `/opt/llmops`（排除 `.venv`、`node_modules`、`chroma_db`、`.env`、`__pycache__`）。`.env` 由 `.env.example` 复制，关键项：
+
+```dotenv
+MYSQL_PASSWORD=<只用字母数字的强密码>
+DEMO_PASSWORD=<改强口令；机器有公网 IP，别用 demo2026>
+DEFAULT_MODEL_PROVIDER=deepseek
+DEEPSEEK_API_KEY=sk-...
+EMBEDDING_PROVIDER=siliconflow
+SILICONFLOW_API_KEY=sk-...
+RAG_RERANK_ENABLED=true
+RAG_RERANK_PROVIDER=cloud
+# RAG_RERANK_API_KEY 留空复用 SILICONFLOW_API_KEY
+```
+
+### 3. 构建启动 + 重建向量
+
+```bash
+cd /opt/llmops
+docker compose up -d --build
+docker compose exec backend python tools/reindex_knowledge.py   # 向量化走 SiliconFlow，不需要 Ollama
+```
+
+### 4. 自检与公网暴露
+
+- 自检按第四节，在 SSH 里对 localhost 跑；第 5 条 RAG 问答的 `model_provider` 改 `deepseek`。
+- 轻量控制台防火墙**只开 TCP 3000**，8000/3306 不开；能限源 IP 就限到自己的出口 IP。
+- 访问 `http://<公网IP>:3000`。鉴权仍是演示级明文口令（第七节第 8 条），限源 IP 是最可靠的防线。
+- 精排阈值 0.76 是本地 sigmoid 标定值，cloud 的 relevance_score 尺度不同，上线后按 docs/05 重扫（容器内 `docker compose exec backend python -m eval run --modes rerank`）。

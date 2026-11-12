@@ -17,6 +17,8 @@
 用法（在 llmops-backend 目录执行）：
     .venv\\Scripts\\python.exe tools\\evaluate_rerank.py --model-path D:\\models\\bge-reranker-v2-m3
     .venv\\Scripts\\python.exe tools\\evaluate_rerank.py --model-path ... --device cpu
+    # 云端精排标定：.env 设 RAG_RERANK_PROVIDER=cloud 后直接跑，候选池/精排器均跟生产配置
+    python tools/evaluate_rerank.py --questions eval_qa.jsonl --output-dir calib_cloud
 
 输出（默认 experiments/results/）：
     rerank_per_query.csv
@@ -39,6 +41,7 @@ REPO_DIR = BACKEND_DIR.parent
 sys.path.insert(0, str(BACKEND_DIR))
 
 from app.core.config import settings  # noqa: E402
+from app.services import rerank_service  # noqa: E402
 from app.services.rerank_service import CrossEncoderReranker  # noqa: E402
 from tools.evaluate_rag import (  # noqa: E402
     NO_ANSWER_TYPES,
@@ -56,6 +59,20 @@ from tools.evaluate_rag import (  # noqa: E402
 def fed_chunks(cands: list[dict], threshold: float, feed_topk: int) -> list[dict]:
     """复刻 RAGService.search 的精排分支：按精排分数过滤，再取前 feed_topk 条。"""
     return [c for c in cands if c["rerank_score"] >= threshold][:feed_topk]
+
+
+def production_candidates(db, query: str, k: int) -> list[dict]:
+    """候选池与 RAGService.search 同口径：开混合走 RRF 融合，否则纯向量召回。"""
+    if settings.RAG_HYBRID_ENABLED:
+        from app.services import hybrid_service
+        from app.services.rag_service import RAGService
+        if hybrid_service.is_available():
+            return [
+                {"doc_id": c.doc_id, "title": c.title, "chunk": c.chunk,
+                 "score": c.score, "content": c.content}
+                for c in RAGService()._hybrid_candidates(db, query, k)
+            ]
+    return retrieve(query, k)
 
 
 def main() -> int:
@@ -90,21 +107,33 @@ def main() -> int:
     no_answer = [q for q in questions if q["type"] in NO_ANSWER_TYPES]
 
     # ---------- 加载精排模型 ----------
-    reranker = CrossEncoderReranker(args.model_path or None)
+    # 跟生产配置走：cloud 用 ApiReranker（不碰 torch），local 用本地权重
+    if settings.RAG_RERANK_PROVIDER.strip().lower() == "cloud":
+        reranker = rerank_service.get_reranker()
+    else:
+        reranker = CrossEncoderReranker(args.model_path or None)
     load_started = time.time()
     loaded = reranker.load()
     load_seconds = time.time() - load_started
     if not loaded:
         print(f"[错误] 精排模型加载失败：{reranker.load_error}")
         return 1
+    model_ref = (
+        reranker._model_ref() if isinstance(reranker, CrossEncoderReranker)
+        else f"{settings.RAG_RERANK_API_MODEL} @ {settings.RAG_RERANK_API_BASE_URL}"
+    )
+
+    from app.core.database import SessionLocal
+    db = SessionLocal()
 
     print("=" * 78)
     print("RAG 精排评测（bge-reranker 两级检索）")
     print(f"  题库      : {display_path(questions_path)}")
     print(f"  问题数    : {len(questions)}（可回答 {len(answerable)} / 无答案 {len(no_answer)}）")
-    print(f"  精排模型  : {reranker._model_ref()}（device={reranker.device}，"
+    print(f"  精排模型  : {model_ref}（device={reranker.device}，"
           f"加载 {load_seconds:.1f}s）")
     print(f"  召回 K    : {args.candidate_k}   最终 top-k: {args.feed_topk}")
+    print(f"  混合检索  : {settings.RAG_HYBRID_ENABLED}")
     print(f"  精排阈值  : {args.threshold}   弱命中余量: {args.margin}")
     print("=" * 78)
 
@@ -114,10 +143,18 @@ def main() -> int:
 
     for idx, q in enumerate(questions, 1):
         expected = {int(d) for d in (q.get("expected_doc_ids") or [])}
-        cands = retrieve(q["question"], k=args.candidate_k)
-
-        started = time.time()
-        scores = reranker.score(q["question"], [c["content"] for c in cands])
+        # 云端通道偶发瞬时 400/限流（实测 SiliconFlow 20015）：整题重试最多 3 次，
+        # 否则一次抖动就中断整轮扫描、前面几十题白跑
+        for attempt in range(3):
+            try:
+                cands = production_candidates(db, q["question"], args.candidate_k)
+                started = time.time()
+                scores = reranker.score(q["question"], [c["content"] for c in cands])
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+                time.sleep(2 * (attempt + 1))
         rerank_ms = (time.time() - started) * 1000
         rerank_ms_list.append(rerank_ms)
 
@@ -307,7 +344,7 @@ def main() -> int:
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "elapsed_seconds": round(elapsed, 2),
         "model": {
-            "ref": reranker._model_ref(),
+            "ref": model_ref,
             "device": reranker.device,
             "load_seconds": round(load_seconds, 2),
             "rerank_ms_per_query_mean": round(mean(rerank_ms_list), 1) if rerank_ms_list else None,
@@ -408,6 +445,7 @@ def main() -> int:
     print(f"\n结果文件: {output_dir}")
     print(f"用时 {elapsed:.1f}s")
     print("=" * 78)
+    db.close()
     return 0
 
 

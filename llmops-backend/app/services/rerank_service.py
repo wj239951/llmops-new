@@ -9,15 +9,21 @@
 设计取舍：
 - 默认关闭（RAG_RERANK_ENABLED=false）：torch + 权重体积大，不是所有部署都需要；
   开启后若依赖/权重缺失，自动回退纯 cosine 检索并打 warning，不影响服务启动。
+- 运行模式可选（RAG_RERANK_PROVIDER=local|cloud）：local 进程内加载权重；
+  cloud 调云端 /rerank API，不装 torch、不占权重内存，供 2核2G 等小服务器使用。
+  两种模式共用同一接口与回退语义，调用方（rag_service）无感知。
 - 候选池放宽到 RAG_RERANK_CANDIDATE_K（默认 6；45 题实测 K=6 已 100% 召回，
   K=12 质量相同但 CPU 耗时约 2.4 倍），先召回再精排，避免精排只能看到 top3。
-- 精排分数是 sigmoid(logit)，取值 (0,1)，不是 cosine，阈值需另标（见 docs/05）。
+- 精排分数是 sigmoid(logit)，取值 (0,1)，不是 cosine，阈值需另标（见 docs/05）；
+  cloud 模式分数为服务商 relevance_score，尺度随服务商不同，换模式须重标阈值。
 """
 from __future__ import annotations
 
 import logging
 import threading
 from dataclasses import replace
+
+import requests
 
 from app.core.config import settings
 
@@ -30,6 +36,8 @@ class RerankerUnavailableError(RuntimeError):
 
 class CrossEncoderReranker:
     """bge-reranker 交叉编码器封装（线程安全的懒加载单例）。"""
+
+    provider = "local"
 
     def __init__(self, model_ref: str | None = None):
         # model_ref 供离线评测脚本指定权重目录；服务运行时留空，走 settings
@@ -126,11 +134,102 @@ class CrossEncoderReranker:
             return self._torch.sigmoid(logits.float()).tolist()
 
 
+class ApiReranker:
+    """云端 /rerank API 封装（SiliconFlow / Jina / Cohere v2 请求响应同构）。
+
+    不加载权重、不依赖 torch，供小内存服务器替代 CrossEncoderReranker。
+    load() 只校验配置（不发网络请求），保持启动零开销；真正的失败发生在 score()，
+    抛 RerankerUnavailableError 由调用方回退 cosine，与 local 缺权重的语义一致。
+    """
+
+    provider = "cloud"
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._loaded = False
+        self._load_attempted = False
+        self._load_error: str | None = None
+
+    def _api_key(self) -> str:
+        return settings.RAG_RERANK_API_KEY or settings.SILICONFLOW_API_KEY
+
+    def load(self) -> bool:
+        if self._loaded:
+            return True
+        if self._load_attempted:
+            return False
+        with self._lock:
+            if self._loaded:
+                return True
+            if self._load_attempted:
+                return False
+            self._load_attempted = True
+            if not self._api_key():
+                self._load_error = "云端精排缺少 API key（RAG_RERANK_API_KEY / SILICONFLOW_API_KEY）"
+            elif not settings.RAG_RERANK_API_BASE_URL:
+                self._load_error = "云端精排缺少 RAG_RERANK_API_BASE_URL"
+            if self._load_error:
+                logger.warning("RAG rerank 不可用，回退 cosine 检索：%s", self._load_error)
+                return False
+            self._loaded = True
+            logger.info(
+                "RAG rerank 使用云端 API：%s（model=%s）",
+                settings.RAG_RERANK_API_BASE_URL,
+                settings.RAG_RERANK_API_MODEL,
+            )
+            return True
+
+    @property
+    def is_loaded(self) -> bool:
+        return self._loaded
+
+    @property
+    def load_error(self) -> str | None:
+        return self._load_error
+
+    @property
+    def device(self) -> str:
+        return "api"
+
+    def score(self, query: str, passages: list[str]) -> list[float]:
+        """一次批量请求 (query, passages) 相关性，按入参顺序返回 relevance_score。"""
+        if not self.load():
+            raise RerankerUnavailableError(self._load_error or "reranker 未加载")
+        url = settings.RAG_RERANK_API_BASE_URL.rstrip("/") + "/rerank"
+        try:
+            resp = requests.post(
+                url,
+                json={
+                    "model": settings.RAG_RERANK_API_MODEL,
+                    "query": query,
+                    "documents": passages,
+                    "top_n": len(passages),
+                    "return_documents": False,
+                },
+                headers={"Authorization": f"Bearer {self._api_key()}"},
+                timeout=settings.RAG_RERANK_API_TIMEOUT,
+            )
+            resp.raise_for_status()
+            results = resp.json()["results"]
+        except Exception as exc:
+            # 网络抖动 / 限流 / 服务商故障：上抛让调用方回退 cosine，不让服务不可用
+            raise RerankerUnavailableError(f"云端精排请求失败：{exc}") from exc
+        scores = [0.0] * len(passages)
+        for item in results:
+            scores[int(item["index"])] = float(item["relevance_score"])
+        return scores
+
+
 # 进程级单例：模型只加载一次，避免每个请求重复吃内存
-_reranker = CrossEncoderReranker()
+_reranker: CrossEncoderReranker | ApiReranker | None = None
 
 
-def get_reranker() -> CrossEncoderReranker:
+def get_reranker() -> CrossEncoderReranker | ApiReranker:
+    """按 RAG_RERANK_PROVIDER 选实现；配置切换后重建单例，同模式内复用。"""
+    global _reranker
+    provider = settings.RAG_RERANK_PROVIDER.strip().lower()
+    if _reranker is None or _reranker.provider != provider:
+        _reranker = ApiReranker() if provider == "cloud" else CrossEncoderReranker()
     return _reranker
 
 
@@ -140,7 +239,7 @@ def is_available(force: bool = False) -> bool:
     force=True 用于请求级开关（ChatRequest.use_rerank=True）：即使服务端默认关闭，
     也允许当前请求尝试加载；加载失败仍会回退 cosine。
     """
-    return (bool(settings.RAG_RERANK_ENABLED) or force) and _reranker.load()
+    return (bool(settings.RAG_RERANK_ENABLED) or force) and get_reranker().load()
 
 
 def rerank_chunks(query: str, chunks, top_k: int | None = None):
@@ -151,7 +250,7 @@ def rerank_chunks(query: str, chunks, top_k: int | None = None):
     """
     if not chunks:
         return []
-    scores = _reranker.score(query, [c.content for c in chunks])
+    scores = get_reranker().score(query, [c.content for c in chunks])
     rescored = [replace(c, score=float(s)) for c, s in zip(chunks, scores)]
     rescored.sort(key=lambda c: c.score, reverse=True)
     return rescored if top_k is None else rescored[:top_k]

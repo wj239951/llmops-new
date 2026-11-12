@@ -4,7 +4,9 @@ services:
     image: llmops-mysql:local
     container_name: llmops-mysql
     restart: unless-stopped
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    # 后两个参数面向 2核2G 小内存服务器：performance_schema 白吃上百 MB，
+    # 默认 buffer pool 对这几张表也是浪费；大内存机器可去掉或调大
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --performance-schema=OFF --innodb-buffer-pool-size=128M
     environment:
       # 只在这里出现一次：backend 连库用的就是 root 账号，两处必须一致
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:?缺少 MYSQL_PASSWORD，请先复制 .env.example 为 .env 并填写}
@@ -38,11 +40,23 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      DEFAULT_MODEL_PROVIDER: ${DEFAULT_MODEL_PROVIDER:-ollama}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-demo2026}
       # 这两个必须显式列在这里才会进容器：compose 只转发本文件里引用到的变量，
       # 写在 .env 里但没在这里声明的键，backend 的 Settings 读不到。
       RAG_SCORE_THRESHOLD: ${RAG_SCORE_THRESHOLD:-0.53}
       MEMORY_MAX_TURNS: ${MEMORY_MAX_TURNS:-10}
+      # 精排整组同理：不声明的话服务器上配了 cloud 模式也进不了容器
+      RAG_RERANK_ENABLED: ${RAG_RERANK_ENABLED:-false}
+      RAG_RERANK_PROVIDER: ${RAG_RERANK_PROVIDER:-local}
+      RAG_RERANK_API_BASE_URL: ${RAG_RERANK_API_BASE_URL:-https://api.siliconflow.cn/v1}
+      RAG_RERANK_API_KEY: ${RAG_RERANK_API_KEY:-}
+      RAG_RERANK_API_MODEL: ${RAG_RERANK_API_MODEL:-BAAI/bge-reranker-v2-m3}
+      RAG_RERANK_API_TIMEOUT: ${RAG_RERANK_API_TIMEOUT:-10}
+      RAG_RERANK_CANDIDATE_K: ${RAG_RERANK_CANDIDATE_K:-6}
+      RAG_RERANK_SCORE_THRESHOLD: ${RAG_RERANK_SCORE_THRESHOLD:-0.76}
+      RAG_RERANK_WEAK_MARGIN: ${RAG_RERANK_WEAK_MARGIN:-0.06}
+      RAG_QUERY_DECOMPOSE_ENABLED: ${RAG_QUERY_DECOMPOSE_ENABLED:-false}
     volumes:
       # 向量库持久化。镜像里 .dockerignore 排除了 chroma_db，容器重启不丢数据靠这个卷
       - chroma_data:/app/chroma_db

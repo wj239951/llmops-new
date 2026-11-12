@@ -145,6 +145,20 @@ RAG_RERANK_SCORE_THRESHOLD=0.76
 
 重启后端即可。CPU 上每次检索约 +4.3–6.2s（K=6；K=12 约 10.4s），首次请求需 13–16s 加载模型。标定过程、误判与代价见 [docs/05.Rerank实验报告](docs/05.Rerank实验报告.md)。
 
+### 可选：精排走云端 API（小内存服务器）
+
+2核2G 这类服务器装不下 torch + 2GB+ 权重，把精排切到云端 `/rerank` API：不装 `requirements-rerank.txt`、不下权重，每次精排从 CPU 数秒降到一次网络往返。SiliconFlow / Jina / Cohere v2 的 `/rerank` 请求响应同构，换服务商只改 base_url 和模型名。
+
+```dotenv
+RAG_RERANK_ENABLED=true
+RAG_RERANK_PROVIDER=cloud
+RAG_RERANK_API_BASE_URL=https://api.siliconflow.cn/v1
+RAG_RERANK_API_KEY=sk-xxx          # 留空则复用 SILICONFLOW_API_KEY
+RAG_RERANK_API_MODEL=BAAI/bge-reranker-v2-m3
+```
+
+注意两点：cloud 分数是服务商的 relevance_score，与 local 的 sigmoid(logit) 尺度不同，`RAG_RERANK_SCORE_THRESHOLD` 须按 docs/05 的方法重扫；API 请求失败（断网/限流/缺 key）时与 local 缺权重一样自动回退纯 cosine，服务不崩，但拒答能力暂时消失。知识库片段会发送到云端，涉密语料请先评估合规。
+
 ### 可选：开启混合检索（无需额外依赖）
 
 默认关闭。开启后向量召回之外并行一路 jieba/BM25 关键词召回，用 RRF 融合候选；不装新依赖、不加新存储，索引在首次检索时从 Chroma 懒加载。

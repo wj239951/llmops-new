@@ -61,6 +61,21 @@ class Settings(BaseSettings):
     RAG_RERANK_WARMUP: bool = True
     # auto | cpu | cuda
     RAG_RERANK_DEVICE: str = "auto"
+    # 精排运行模式：local = 进程内 torch 加载权重；cloud = 调云端 /rerank API。
+    # 2核2G 这类小内存服务器装不下 2.27GB 权重，用 cloud；cloud 不依赖 torch/transformers，
+    # 请求失败/缺 key 时与 local 缺权重一样回退纯 cosine。
+    # 注意：cloud 分数是服务商的 relevance_score，与 local 的 sigmoid(logit) 尺度不同，
+    # 切换后 RAG_RERANK_SCORE_THRESHOLD 须按 docs/05 的方法重扫标定。
+    RAG_RERANK_PROVIDER: str = "local"
+    # cloud 模式 /rerank 端点前缀（含 /v1 或 /v2）；SiliconFlow / Jina / Cohere v2 请求响应同构
+    RAG_RERANK_API_BASE_URL: str = "https://api.siliconflow.cn/v1"
+    # cloud 模式 key；留空复用 SILICONFLOW_API_KEY（同一家硅基流动账号时不用填两遍）
+    RAG_RERANK_API_KEY: str = ""
+    RAG_RERANK_API_MODEL: str = "BAAI/bge-reranker-v2-m3"
+    RAG_RERANK_API_TIMEOUT: float = 10.0
+    # 检索查询分解：复合问题拆主题子问句，各自过精排闸门后合并去重（query_decompose）。
+    # 默认关闭；开启后每问多一次 LLM 调用（走 DEFAULT_MODEL_PROVIDER），失败回退原句。
+    RAG_QUERY_DECOMPOSE_ENABLED: bool = False
     # ── 混合检索（jieba/BM25 关键词召回 + 向量召回 RRF 融合，可选）──
     # 默认关闭：向量检索仍是主链路；开启后若 jieba/索引不可用，search 自动回退纯向量。
     # 关键词通道专治「精确编号 / 型号 / 数字」类查询（RL-2077、E-073、25m…），
