@@ -21,6 +21,22 @@ _fake_client = MagicMock()
 _fake_client.get_collection.return_value = _fake_collection
 patch("chromadb.PersistentClient", return_value=_fake_client).start()
 
+# 向量化同样不许走网络：CI 没有 Ollama，开发机能过只是因为本机 Ollama 恰好在跑。
+# embeddings 是 pydantic 模型（OllamaEmbeddings），实例属性不让 patch，故 patch 类方法；
+# vectorstore 在 import 时持有同一个对象，类方法覆盖后 add_texts / 检索都走假向量。
+from app.services import rag_service  # noqa: E402
+
+
+def _fake_vector(text: str) -> list[float]:
+    seed = sum(text.encode("utf-8")) % 97
+    return [((seed + i) % 13) / 13.0 for i in range(8)]
+
+
+_emb_cls = type(rag_service.embeddings)
+patch.object(_emb_cls, "embed_documents",
+             lambda self, texts: [_fake_vector(t) for t in texts]).start()
+patch.object(_emb_cls, "embed_query", lambda self, text: _fake_vector(text)).start()
+
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
