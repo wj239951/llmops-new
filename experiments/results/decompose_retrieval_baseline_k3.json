@@ -1,0 +1,110 @@
+{
+  "n_questions": 60,
+  "n_docs": 11,
+  "n_chunks": 21,
+  "candidate_k": 6,
+  "feed_topk": 3,
+  "conditions": {
+    "off 整句": {
+      "n": 60,
+      "full": 0.9,
+      "coverage": 0.9555555555555556,
+      "first_doc": 0.9666666666666667
+    },
+    "on 老师分解": {
+      "n": 60,
+      "full": 0.9833333333333333,
+      "coverage": 0.9944444444444445,
+      "first_doc": 0.9833333333333333
+    },
+    "on 学生分解": {
+      "n": 60,
+      "full": 1.0,
+      "coverage": 1.0,
+      "first_doc": 0.9666666666666667
+    }
+  },
+  "by_group": {
+    "A": {
+      "off": {
+        "n": 40,
+        "full": 0.9,
+        "coverage": 0.95,
+        "first_doc": 0.95
+      },
+      "teacher": {
+        "n": 40,
+        "full": 1.0,
+        "coverage": 1.0,
+        "first_doc": 0.975
+      },
+      "student": {
+        "n": 40,
+        "full": 1.0,
+        "coverage": 1.0,
+        "first_doc": 0.975
+      }
+    },
+    "B": {
+      "off": {
+        "n": 10,
+        "full": 1.0,
+        "coverage": 1.0,
+        "first_doc": 1.0
+      },
+      "teacher": {
+        "n": 10,
+        "full": 1.0,
+        "coverage": 1.0,
+        "first_doc": 1.0
+      },
+      "student": {
+        "n": 10,
+        "full": 1.0,
+        "coverage": 1.0,
+        "first_doc": 0.9
+      }
+    },
+    "C": {
+      "off": {
+        "n": 6,
+        "full": 0.6666666666666666,
+        "coverage": 0.8888888888888888,
+        "first_doc": 1.0
+      },
+      "teacher": {
+        "n": 6,
+        "full": 0.8333333333333334,
+        "coverage": 0.9444444444444444,
+        "first_doc": 1.0
+      },
+      "student": {
+        "n": 6,
+        "full": 1.0,
+        "coverage": 1.0,
+        "first_doc": 1.0
+      }
+    },
+    "D": {
+      "off": {
+        "n": 4,
+        "full": 1.0,
+        "coverage": 1.0,
+        "first_doc": 1.0
+      },
+      "teacher": {
+        "n": 4,
+        "full": 1.0,
+        "coverage": 1.0,
+        "first_doc": 1.0
+      },
+      "student": {
+        "n": 4,
+        "full": 1.0,
+        "coverage": 1.0,
+        "first_doc": 1.0
+      }
+    }
+  },
+  "subs_file": "D:\\yuliaochuli\\eval\\decompose_student_subs.jsonl"
+}

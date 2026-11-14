@@ -279,6 +279,7 @@ cd llmops-backend
 .venv\Scripts\python.exe tools/evaluate_rerank.py    # rerank 精排（需先按上文准备权重）
 .venv\Scripts\python.exe tools/evaluate_hybrid.py    # 混合检索四模式 × 三题库（需精排权重）
 .venv\Scripts\python.exe tools/evaluate_clean_retrieval.py --noise heavy   # 输入清洗前后对比
+.venv\Scripts\python.exe tools/evaluate_decompose_retrieval.py --feed-topk 3   # 查询分解：不拆 / 老师 / 学生
 ```
 
 - 题库：`experiments/eval_qa.jsonl` 45 条自然语言（21 exact / 16 paraphrase / 4 远域无答案 / 4 近域无答案）+ `eval_qa_hard.jsonl` 15 条精确编号长问句 + `eval_qa_token.jsonl` 15 条搜索框短查询
@@ -286,6 +287,7 @@ cd llmops-backend
 - rerank（`bge-reranker-v2-m3`，K=6，`threshold=0.76`）：recall@6 **100%**、MRR **1.0000**、hit@3 **97.3%**（36/37）、**无答案误接受 0%**（8/8 全拒）；代价是 1 条改写题漏答、CPU 单次检索 +4.8s
 - hybrid 对照（[docs/06](docs/06.混合检索实验报告.md)）：自然语言题库上 dense 召回已 100%，hybrid 与 dense 指标完全一致；**搜索框短查询**题库上 recall@6 **86.7% → 100%**，开精排后 hit@3 **26.7% → 46.7%**、MRR **0.8222 → 1.0000**，耗时与 dense+rerank 基本持平
 - 输入清洗（[docs/09](docs/09.输入清洗检索评测报告.md)）：把 75 条题弄脏后重测，伤害集中在**短查询**——heavy 噪声下 `token_query` 的 hit@3 **73.3% → 86.7%**、MRR **0.606 → 0.689**，清洗后与干净基线逐位相同；长句（exact / paraphrase / exact_token）四种条件下全部 100%，说明 bge-m3 本身对轻度噪声不敏感
+- 查询分解（[docs/10](docs/10.查询分解检索评测报告.md)）：60 条耦合问句上，整句检索 full 率 **90.0%**（feed_topk=3）→ 老师分解 **98.3%** → 0.8B 蒸馏学生 **100%**；压到 feed_topk=2 则是 73.3% / 81.7% / 78.3%——学生只学会"切分"没学会"改写"，宽预算下够用
 - 产物 `experiments/results/`：`per_query.csv`、`threshold_sweep.csv`、`margin_sweep.csv`、`summary.json`（cosine），`rerank_*.csv`、`rerank_summary.json`（rerank），`hybrid_compare.csv`、`hybrid_per_query.csv`、`hybrid_summary.json`（四模式对照），以及 `clean_retrieval_all_{mild,heavy}.{csv,json}`
 - 结论与局限见 [docs/04.评测报告](docs/04.评测报告.md)、[docs/05.Rerank实验报告](docs/05.Rerank实验报告.md)、[docs/06.混合检索实验报告](docs/06.混合检索实验报告.md)、[docs/09.输入清洗检索评测报告](docs/09.输入清洗检索评测报告.md)
 
@@ -337,6 +339,7 @@ cd llmops-backend
 - [docs/07.流式改造报告](docs/07.流式改造报告.md) —— SSE 事件协议、双 provider 流式、前端增量渲染与降级
 - [docs/08.输入清洗接入报告](docs/08.输入清洗接入报告.md) —— 两条清洗通道、还原率实测、模型为什么不修乱码
 - [docs/09.输入清洗检索评测报告](docs/09.输入清洗检索评测报告.md) —— 脏化 75 条题前后的检索指标，以及评测反过来修掉的三个清洗缺陷
+- [docs/10.查询分解检索评测报告](docs/10.查询分解检索评测报告.md) —— 复合问句拆不拆的检索收益，0.8B 蒸馏学生 vs 老师 vs 不拆
 
 ---
 
