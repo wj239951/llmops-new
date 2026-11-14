@@ -278,14 +278,16 @@ cd llmops-backend
 .venv\Scripts\python.exe tools/evaluate_rag.py        # cosine 基线
 .venv\Scripts\python.exe tools/evaluate_rerank.py    # rerank 精排（需先按上文准备权重）
 .venv\Scripts\python.exe tools/evaluate_hybrid.py    # 混合检索四模式 × 三题库（需精排权重）
+.venv\Scripts\python.exe tools/evaluate_clean_retrieval.py --noise heavy   # 输入清洗前后对比
 ```
 
 - 题库：`experiments/eval_qa.jsonl` 45 条自然语言（21 exact / 16 paraphrase / 4 远域无答案 / 4 近域无答案）+ `eval_qa_hard.jsonl` 15 条精确编号长问句 + `eval_qa_token.jsonl` 15 条搜索框短查询
 - cosine 基线（21 条向量，`threshold=0.53`）：recall@6 **100%**、MRR **1.0000**、hit@3 **100%**、top1 准确率 **100%**；8 条无答案问题全部被阈值放行
 - rerank（`bge-reranker-v2-m3`，K=6，`threshold=0.76`）：recall@6 **100%**、MRR **1.0000**、hit@3 **97.3%**（36/37）、**无答案误接受 0%**（8/8 全拒）；代价是 1 条改写题漏答、CPU 单次检索 +4.8s
 - hybrid 对照（[docs/06](docs/06.混合检索实验报告.md)）：自然语言题库上 dense 召回已 100%，hybrid 与 dense 指标完全一致；**搜索框短查询**题库上 recall@6 **86.7% → 100%**，开精排后 hit@3 **26.7% → 46.7%**、MRR **0.8222 → 1.0000**，耗时与 dense+rerank 基本持平
-- 产物 `experiments/results/`：`per_query.csv`、`threshold_sweep.csv`、`margin_sweep.csv`、`summary.json`（cosine），`rerank_*.csv`、`rerank_summary.json`（rerank），以及 `hybrid_compare.csv`、`hybrid_per_query.csv`、`hybrid_summary.json`（四模式对照）
-- 结论与局限见 [docs/04.评测报告](docs/04.评测报告.md)、[docs/05.Rerank实验报告](docs/05.Rerank实验报告.md)、[docs/06.混合检索实验报告](docs/06.混合检索实验报告.md)
+- 输入清洗（[docs/09](docs/09.输入清洗检索评测报告.md)）：把 75 条题弄脏后重测，伤害集中在**短查询**——heavy 噪声下 `token_query` 的 hit@3 **73.3% → 86.7%**、MRR **0.606 → 0.689**，清洗后与干净基线逐位相同；长句（exact / paraphrase / exact_token）四种条件下全部 100%，说明 bge-m3 本身对轻度噪声不敏感
+- 产物 `experiments/results/`：`per_query.csv`、`threshold_sweep.csv`、`margin_sweep.csv`、`summary.json`（cosine），`rerank_*.csv`、`rerank_summary.json`（rerank），`hybrid_compare.csv`、`hybrid_per_query.csv`、`hybrid_summary.json`（四模式对照），以及 `clean_retrieval_all_{mild,heavy}.{csv,json}`
+- 结论与局限见 [docs/04.评测报告](docs/04.评测报告.md)、[docs/05.Rerank实验报告](docs/05.Rerank实验报告.md)、[docs/06.混合检索实验报告](docs/06.混合检索实验报告.md)、[docs/09.输入清洗检索评测报告](docs/09.输入清洗检索评测报告.md)
 
 ## 已知边界与后续计划
 
@@ -301,10 +303,12 @@ cd llmops-backend
 - **流式时延尚未上报**：`first_token_ms` / `latency_ms` 只写进 `done` 与服务端日志，没有指标面板；本地一次联调的数值与冷启动说明见 [docs/07](docs/07.流式改造报告.md) 7.4。`deepseek-reasoner` 的思维链与回答分开推送，老版本 Ollama 内联的 `<think>…</think>` 只能在流结束后剥离。
 - **鉴权是演示口令**，不是生产级认证方案。
 - 单机部署，无水平扩展；尚未接入 CI。
-- **输入清洗默认关闭且对现有基线是 no-op**：45 条评测题上规则与模型输出 100% 一致（题本身干净），
-  所以清洗不会改变现有指标；它的价值在真实粘贴文本。另外机械噪声上规则还原率 100%、
-  小模型 87–98%，故默认走规则通道，模型通道只作为长段落 / PDF 粘贴的增强项
-  （单次 0.4s，2 核 2G 服务器装不下）。详见 [docs/08](docs/08.输入清洗接入报告.md)。
+- **输入清洗只在短查询上有可测收益**：75 条题弄脏后重测，长句（exact / paraphrase / 编号）
+  四种条件下全是 100%——bge-m3 对轻度噪声本来就鲁棒；唯一掉指标的是搜索框短查询
+  （heavy 下 hit@3 73.3% → 86.7%、MRR 0.606 → 0.689），清洗后回到干净基线。
+  另外机械噪声上规则还原率 97%、小模型 55–83%，故默认走规则通道，模型通道只作为
+  长段落 / PDF 整篇粘贴的增强项（单次 0.4s，2 核 2G 服务器装不下）。
+  详见 [docs/08](docs/08.输入清洗接入报告.md)、[docs/09](docs/09.输入清洗检索评测报告.md)。
 
 后续计划：
 
@@ -332,6 +336,7 @@ cd llmops-backend
 - [docs/06.混合检索实验报告](docs/06.混合检索实验报告.md) —— BM25 + 向量 RRF 混合检索、三题库四模式对照与局限
 - [docs/07.流式改造报告](docs/07.流式改造报告.md) —— SSE 事件协议、双 provider 流式、前端增量渲染与降级
 - [docs/08.输入清洗接入报告](docs/08.输入清洗接入报告.md) —— 两条清洗通道、还原率实测、模型为什么不修乱码
+- [docs/09.输入清洗检索评测报告](docs/09.输入清洗检索评测报告.md) —— 脏化 75 条题前后的检索指标，以及评测反过来修掉的三个清洗缺陷
 
 ---
 

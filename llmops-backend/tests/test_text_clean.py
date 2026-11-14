@@ -25,6 +25,10 @@ from app.services.text_clean import InputCleaner, clean_rule
     ("<p>你好&nbsp;世界</p>", "你好 世界"),                   # HTML 实体与标签
     ("æ˜Žå¤©åŽ»åŒ—äº¬", "明天去北京"),                       # UTF-8 被按 Latin-1 解码
     ("看看 https://example.com/a?b=1&c=2 谢谢", "看看 https://example.com/a?b=1&c=2 谢谢"),  # URL 不动
+    ("巡检周期  ，  是怎么规定的  ？", "巡检周期，是怎么规定的？"),   # 中文标点两侧空格
+    ("工业 LLMOps 的核\n心能力包括哪些？", "工业 LLMOps 的核心能力包括哪些？"),  # 短文本折行要合并
+    ("报错误码 Ｅ-\n073 时应先检查", "报错误码 E-073 时应先检查"),   # 型号被折开不能补空格
+    ("合模压力低于多少少\n少少吨", "合模压力低于多少吨"),           # 跨行重复字先合并再压缩
     ("   ", ""),                                             # 纯空白
 ])
 def test_clean_rule(raw, expected):

@@ -193,6 +193,20 @@ def _normalize_punct(text: str) -> str:
     return text
 
 
+def _strip_space_around_cjk_punct(text: str) -> str:
+    """去掉中文标点两侧的多余空格：`你好 ，世界` → `你好，世界`。
+
+    中文排版里标点前后不空格，而粘贴/输入法常会带出空格。只处理「中文 + 空格 + 中文标点」
+    与反向两种情形，不动英文语境（`a , b`）。
+    """
+    cjk = r"[\u4e00-\u9fff]"
+    punct = r"[，。！？：；、）】」』]"
+    punct_open = r"[，。！？：；（【「『]"
+    text = re.sub(rf"(?<={cjk})[ \t]+(?={punct})", "", text)
+    text = re.sub(rf"(?<={punct_open})[ \t]+(?={cjk})", "", text)
+    return text
+
+
 def _collapse_repeats(text: str) -> str:
     """同一汉字连打 ≥3 次压成 1 次；字母 ≥3 次压成 2 次。数字不动。"""
     text = _CJK_RUN.sub(r"\1", text)
@@ -200,16 +214,26 @@ def _collapse_repeats(text: str) -> str:
 
 
 def _join_hard_wraps(text: str) -> str:
-    """合并排版折断的行：上一行够长、且没说完，下一行不像新句子时才接上。"""
+    """合并排版折断的行：上一行够长、且没说完，下一行不像新句子时才接上。
+
+    短文本（≤120 字）放宽「够长」这一条：聊天框里的输入本身就短，从网页/PDF 复制一段
+    问句被折成两三行是常态，而"上一行 ≥24 字"这个阈值是为长文档设计的，短查询永远触发不了。
+    代价是「好的\\n我知道了」这类真的分两行的短句会被接成一行——对检索/问答场景可接受。
+    """
+    short_text = len(text) <= 120
     lines = text.split("\n")
     out: list[str] = []
     for line in lines:
-        if out and out[-1] and len(out[-1]) >= 24 and out[-1][-1] not in _TERMINAL:
+        if out and out[-1] and (len(out[-1]) >= 24 or short_text) and out[-1][-1] not in _TERMINAL:
             nxt = line.lstrip()
             if nxt and not re.match(r"^(?:[-*+•·]|\d{1,2}[.)、]|#|>|\|)", nxt) \
                     and re.search(r"[0-9A-Za-z\u4e00-\u9fff]", nxt):
-                left_cjk, right_cjk = is_cjk(out[-1][-1]), is_cjk(nxt[0])
-                out[-1] = out[-1] + ("" if (left_cjk or right_cjk) else " ") + nxt
+                # 只在「英文单词/数字彼此被折断」时补一个空格；
+                # `E-` + `073` 这种带符号的断开不能补，否则型号会被拆成 `E- 073`。
+                left, right = out[-1][-1], nxt[0]
+                sep = " " if (left.isascii() and right.isascii()
+                              and left.isalnum() and right.isalnum()) else ""
+                out[-1] = out[-1] + sep + nxt
                 continue
         out.append(line)
     return "\n".join(out)
@@ -254,9 +278,11 @@ def clean_rule(text: str) -> str:
         text = pattern.sub(_keep, text)
     text = _normalize_width(text)
     text = _normalize_punct(text)
-    text = _collapse_repeats(text)
+    text = _strip_space_around_cjk_punct(text)
     text = "\n".join(line.strip() for line in text.split("\n"))
+    # 先合并折断的行，再压重复字符：`多少少\n少少` 这类跨行重复只有合并后才看得出来
     text = _join_hard_wraps(text)
+    text = _collapse_repeats(text)
     text = _normalize_space(text)
 
     def _restore(m: re.Match) -> str:
