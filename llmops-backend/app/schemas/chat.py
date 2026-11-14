@@ -12,6 +12,8 @@ class ChatRequest(BaseModel):
     use_rag: bool = False
     # None=跟随服务端配置；True/False=本次请求强制开启/关闭精排（前端按钮开关用）
     use_rerank: bool | None = None
+    # None=跟随服务端配置；True/False=本次请求强制开启/关闭输入清洗
+    use_clean: bool | None = None
     ##
     conversation_id: str | None = None# 聊天会话 ID
     memory_enabled: bool = False# 是否启用内存
@@ -39,6 +41,9 @@ class ChatResponse(BaseModel):
     score_mode: str | None = None
     rerank_requested: bool | None = None
     rerank_available: bool | None = None
+    # 输入清洗结果：{mode, applied, changed, fallback, reason, ms, clean_query?}
+    # 用户原文仍按 query 存库，clean_query 只在真的改动了内容时返回，便于前端展示差异
+    clean: dict | None = None
     # 阶段耗时（ms）：prepare / retrieve / rerank / llm / first_token / total
     timings: dict | None = None
     ##

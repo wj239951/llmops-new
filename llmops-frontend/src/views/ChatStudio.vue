@@ -53,6 +53,12 @@ Token统计
               服务端精排：{{ serverRerankEnabled ? '可用' : '不可用（请求后会自动回退向量余弦）' }}
             </span>
            </el-form-item>
+           <el-form-item label="输入清洗">
+            <el-switch v-model="form.use_clean" />
+            <span class="rerank-hint">
+              服务端清洗：{{ cleanModeText }}
+            </span>
+           </el-form-item>
             <el-form-item label="会话历史">
               <el-select v-model="form.conversation_id" clearable style="width: 300px" @change="switchConversation">
                 <el-option
@@ -136,6 +142,20 @@ style="margin-top: 10px"
                   style="margin-top: 8px"
                 />
                 <el-alert
+                  v-if="cleanInfo && cleanInfo.changed"
+                  :title="`输入已清洗（${cleanInfo.mode}，${cleanInfo.ms ?? 0}ms）：${cleanInfo.clean_query ?? ''}`"
+                  type="success"
+                  :closable="false"
+                  style="margin-top: 8px"
+                />
+                <el-alert
+                  v-else-if="cleanInfo && cleanInfo.fallback"
+                  title="输入清洗：模型通道不可用，已回退规则清洗"
+                  type="warning"
+                  :closable="false"
+                  style="margin-top: 8px"
+                />
+                <el-alert
                   v-if="timingsText"
                   :title="`耗时拆解：${timingsText}`"
                   type="info"
@@ -190,7 +210,7 @@ style="margin-top: 10px"
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChatMessage, ChatRequestPayload, Conversation, PhaseTimings, Prompt, RagStatus, Source } from '../types'
+import type { ChatMessage, ChatRequestPayload, CleanInfo, Conversation, PhaseTimings, Prompt, RagStatus, Source } from '../types'
 import { getChatOptions, sendChat, sendChatStream } from '../api/chat'
 import { listPrompts } from '../api/prompt'
 import { listConversations, createConversation, getMessages, deleteConversation } from '../api/conversations'
@@ -207,6 +227,14 @@ const ragStatus = ref<RagStatus>('off')
 // 精排开关与服务端能力：serverRerankEnabled 来自 GET /chat/options（不触发模型加载）
 const serverRerankEnabled = ref(false)
 const serverRerankModel = ref('')
+// 输入清洗：服务端默认模式 + 本次请求的清洗结果
+const serverCleanMode = ref('off')
+const cleanInfo = ref<CleanInfo | null>(null)
+const cleanModeText = computed(() => {
+  if (serverCleanMode.value === 'model') return '模型（失败回退规则）'
+  if (serverCleanMode.value === 'rule') return '规则清洗'
+  return '未启用（可在 .env 里开 INPUT_CLEAN_MODE）'
+})
 // 本次请求的实际打分信息（来自 meta / done / 非流式响应）
 const scoreMode = ref('')
 // 本次请求的阶段耗时文案（检索 / 精排 / 生成 / 首字），空串表示没有数据
@@ -230,6 +258,7 @@ const form = reactive({
   model_name: 'deepseek-chat',
   use_rag: true,
   use_rerank: false,
+  use_clean: false,
   memory_enabled: true,
   conversation_id: ''
 })
@@ -253,6 +282,11 @@ function applyScoreInfo(info: {
   scoreMode.value = info.score_mode ?? ''
   rerankRequested.value = info.rerank_requested ?? false
   rerankAvailable.value = info.rerank_available ?? null
+}
+
+/** 从 meta / done / 非流式响应里读取本次输入清洗结果 */
+function applyCleanInfo(info: { clean?: CleanInfo | null }) {
+  cleanInfo.value = info.clean ?? null
 }
 
 /** 毫秒转短文本：1200 → 1.2s */
@@ -289,9 +323,12 @@ async function loadChatOptions() {
     serverRerankEnabled.value = opts.rerank_enabled
     serverRerankModel.value = opts.rerank_model
     form.use_rerank = opts.rerank_enabled
+    serverCleanMode.value = opts.clean_mode ?? 'off'
+    form.use_clean = Boolean(opts.clean_enabled)
   } catch {
     // 可选接口失败不影响聊天；开关保持关闭并显示不可用
     serverRerankEnabled.value = false
+    serverCleanMode.value = 'off'
   }
 }
 async function newConversation() {
@@ -309,6 +346,7 @@ async function newConversation() {
   timingsText.value = ''
   rerankRequested.value = false
   rerankAvailable.value = null
+  cleanInfo.value = null
 }
 async function switchConversation() {
   if (!form.conversation_id) {
@@ -337,6 +375,7 @@ async function deleteCurrentConversation() {
   timingsText.value = ''
   rerankRequested.value = false
   rerankAvailable.value = null
+  cleanInfo.value = null
   await loadConversations()
 }
 async function submit() {
@@ -353,11 +392,14 @@ async function submit() {
   timingsText.value = ''
   rerankRequested.value = false
   rerankAvailable.value = null
+  cleanInfo.value = null
   const ctrl = new AbortController()
   // RAG 关闭时精排无意义，显式传 null 表示"本次不干预，跟随服务端"
   const payload: ChatRequestPayload = {
     ...form,
     use_rerank: form.use_rag ? form.use_rerank : null,
+    // 清洗与 RAG 无关，任何时候都按开关显式下发（false 表示本次不要清洗）
+    use_clean: form.use_clean,
   }
   controller.value = ctrl
 
@@ -381,6 +423,7 @@ async function submit() {
             ragStatus.value = m.rag_status ?? 'off'
             meta.value = `${m.model_provider} / ${m.model_name}`
             applyScoreInfo(m)
+            applyCleanInfo(m)
           },
           onReasoning(delta) {
             hasSubstantiveOutput = true
@@ -400,6 +443,7 @@ async function submit() {
             if (d.conversation_id) form.conversation_id = d.conversation_id
             meta.value = `${d.model_provider} / ${d.model_name} / tokens=${d.total_tokens} / ${d.latency_ms}ms`
             applyScoreInfo(d)
+            applyCleanInfo(d)
             timingsText.value = formatTimings(d.timings)
           },
           onError(message) {
@@ -434,6 +478,7 @@ async function submit() {
         ragStatus.value = res.rag_status ?? 'off'
         meta.value = `${res.model_provider} / ${res.model_name} / tokens=${res.total_tokens} / ${res.latency_ms}ms`
         applyScoreInfo(res)
+        applyCleanInfo(res)
         timingsText.value = formatTimings(res.timings)
       } else if (!streamError) {
         // 已经有内容但流没给 done 就断开：保留已有内容，提示可能不完整

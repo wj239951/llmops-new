@@ -72,6 +72,7 @@
 - **对话**：本地 Ollama（deepseek-r1:7b）与 DeepSeek 云端双通道，可选 Prompt 模板、温度 / top_p、思考过程、Token 与耗时统计；**SSE 流式输出**（`reasoning` 分片 + RAG 阶段进度），流式失败自动降级非流式；**精排开关**可请求级强制开/关，并显示本次实际打分方式
 - **知识库**：手动录入、文件上传解析、增删改查，切块与向量同步，来源与命中分数回显
 - **RAG**：三级检索（余弦召回 + 可选 jieba/BM25 关键词召回 RRF 融合 + 可选 bge-reranker 精排）、阈值过滤、宽候选池、弱命中降级（`hit` / `weak_hit` / `no_hit` / `off` 四态）；支持请求级 `use_rerank` 覆盖服务端配置
+- **输入清洗**：粘贴进来的脏文本先规范化再检索——零宽字符、全角型号、重复字、HTML 残留、PDF 硬换行都会把 bge-m3 向量带偏。两条通道：`rule` 纯规则（毫秒级、零依赖）/ `model` 调蒸馏的 0.8B 清洗模型（可选，失败自动回退规则）；用户原文照常入库，只有检索与提问用清洗结果。见 [docs/08](docs/08.输入清洗接入报告.md)
 - **会话记忆**：按 `conversation_id` 取最近 `MEMORY_MAX_TURNS` 轮成功对话，支持会话列表与历史消息
 - **调用日志**：分页查询，带 token、耗时、状态、错误信息
 
@@ -188,6 +189,8 @@ RAG_HYBRID_ENABLED=true
 | `RAG_RERANK_ENABLED` / `RAG_RERANK_MODEL_PATH` | 精排开关（默认 `false`）/ 本地权重目录；开启后依赖或权重缺失时自动回退纯 cosine；请求级 `use_rerank` 可临时覆盖 |
 | `RAG_RERANK_CANDIDATE_K` / `RAG_RERANK_SCORE_THRESHOLD` / `RAG_RERANK_WEAK_MARGIN` | 代码默认 `6` / `0.76` / `0.06`（45 题标定，见 [docs/05](docs/05.Rerank实验报告.md)） |
 | `RAG_HYBRID_ENABLED` / `RAG_HYBRID_DENSE_K` / `RAG_HYBRID_SPARSE_K` / `RAG_HYBRID_RRF_K` | 混合检索开关（默认 `false`）/ 向量候选 `12` / BM25 候选 `12` / RRF 常数 `60`；无额外依赖 |
+| `INPUT_CLEAN_MODE` / `INPUT_CLEAN_FALLBACK` | 输入清洗开关（`off` 默认 / `rule` 零依赖 / `model` 调独立清洗服务）/ 失败兜底 `rule`；请求级 `use_clean` 可临时覆盖 |
+| `INPUT_CLEAN_SERVER_URL` / `INPUT_CLEAN_TIMEOUT` / `INPUT_CLEAN_MAX_CHARS` | 清洗服务地址 `127.0.0.1:8010` / 超时 `5s` / 超长跳过阈值 `4000` |
 
 ## 目录结构
 
@@ -298,6 +301,10 @@ cd llmops-backend
 - **流式时延尚未上报**：`first_token_ms` / `latency_ms` 只写进 `done` 与服务端日志，没有指标面板；本地一次联调的数值与冷启动说明见 [docs/07](docs/07.流式改造报告.md) 7.4。`deepseek-reasoner` 的思维链与回答分开推送，老版本 Ollama 内联的 `<think>…</think>` 只能在流结束后剥离。
 - **鉴权是演示口令**，不是生产级认证方案。
 - 单机部署，无水平扩展；尚未接入 CI。
+- **输入清洗默认关闭且对现有基线是 no-op**：45 条评测题上规则与模型输出 100% 一致（题本身干净），
+  所以清洗不会改变现有指标；它的价值在真实粘贴文本。另外机械噪声上规则还原率 100%、
+  小模型 87–98%，故默认走规则通道，模型通道只作为长段落 / PDF 粘贴的增强项
+  （单次 0.4s，2 核 2G 服务器装不下）。详见 [docs/08](docs/08.输入清洗接入报告.md)。
 
 后续计划：
 
@@ -305,6 +312,7 @@ cd llmops-backend
 - [x] 阈值 / 余量按语料自动标定的脚本，替代手工扫描
 - [x] 混合检索（jieba/BM25 + 向量 RRF 融合），搜索框短查询 recall@6 86.7%→100% —— 见 [docs/06](docs/06.混合检索实验报告.md)
 - [x] SSE 流式输出（reasoning 分片 + RAG 阶段进度），首包前失败自动降级非流式 —— 见 [docs/07](docs/07.流式改造报告.md)
+- [x] 输入清洗（规则 + 蒸馏 0.8B 双通道，失败回退），把脏粘贴挡在检索之前 —— 见 [docs/08](docs/08.输入清洗接入报告.md)
 - [x] 精排请求级开关 + 打分方式可视化（Chat Studio「精排」开关，`GET /api/chat/options`）
 - [ ] 扩充评测集（150+ 条、跨语料）验证 rerank 阈值泛化性
 - [ ] 精排加速：CUDA / ONNX Runtime / 更小模型（CPU 上目前约 4.8s/次）
@@ -323,6 +331,7 @@ cd llmops-backend
 - [docs/05.Rerank实验报告](docs/05.Rerank实验报告.md) —— 两级检索、精排阈值扫描与代价
 - [docs/06.混合检索实验报告](docs/06.混合检索实验报告.md) —— BM25 + 向量 RRF 混合检索、三题库四模式对照与局限
 - [docs/07.流式改造报告](docs/07.流式改造报告.md) —— SSE 事件协议、双 provider 流式、前端增量渲染与降级
+- [docs/08.输入清洗接入报告](docs/08.输入清洗接入报告.md) —— 两条清洗通道、还原率实测、模型为什么不修乱码
 
 ---
 

@@ -90,6 +90,19 @@ class Settings(BaseSettings):
     # 不再要求它为 cosine 阈值让路。这类片段的余弦分普遍只有 0.4 左右，会被 0.53 的闸门误杀，
     # 导致混合检索召回的片段到不了回答层（2026-11-05 实测：ZX-2026 候选分 0.4207，最终 0 条）。
     RAG_HYBRID_EXACT_BYPASS: bool = True
+    # ── 输入清洗（可选）：把用户粘贴的脏文本规范化后再进检索 / 生成 ──
+    # off = 关闭；rule = 纯规则清洗（毫秒级、零依赖）；model = 调独立清洗服务（蒸馏 0.8B 模型）。
+    # 默认关闭：清洗会改写用户原文，属于需要显式开启的行为。
+    # 开启后任何失败都不影响主链路，按 INPUT_CLEAN_FALLBACK 回退。
+    INPUT_CLEAN_MODE: str = "off"
+    # model 模式的清洗服务地址（tools/clean_server.py 默认监听 8010）
+    INPUT_CLEAN_SERVER_URL: str = "http://127.0.0.1:8010"
+    # 单次清洗超时：模型通道在 CPU 上约 0.3–1s，留 5s 兜冷启动
+    INPUT_CLEAN_TIMEOUT: float = 5.0
+    # 清洗失败兜底：rule = 退回规则清洗；off = 直接用原文
+    INPUT_CLEAN_FALLBACK: str = "rule"
+    # 超过这个长度不清洗：模型通道会拖慢首字，长文清洗收益递减
+    INPUT_CLEAN_MAX_CHARS: int = 4000
     # embedding provider 开关:"ollama" | "siliconflow"
     EMBEDDING_PROVIDER: str = "ollama"
     # ollama embedding(本地)

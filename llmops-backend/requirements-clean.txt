@@ -1,0 +1,14 @@
+# 输入清洗服务（tools/clean_server.py）的额外依赖。
+#
+# 只在 INPUT_CLEAN_MODE=model 时需要；rule 通道零依赖，不需要装这个文件。
+# 需要 GPU 或 4GB+ 内存；装完把模型权重目录传进来即可（--model）。
+#
+#   pip install -r requirements-clean.txt
+#   python tools/clean_server.py --model <Qwen3.5-0.8B-TextPreprocessor 目录> --port 8010
+
+torch>=2.4.0
+transformers>=5.0.0
+accelerate>=1.0.0
+safetensors>=0.4.3
+sentencepiece>=0.2.0
+protobuf>=4.25.0

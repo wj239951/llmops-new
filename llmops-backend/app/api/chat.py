@@ -29,13 +29,17 @@ def _sse(item: dict) -> str:
 
 @router.get("/options")
 def chat_options():
-    """前端精排开关的初始状态：只读服务端配置，不触发模型加载。"""
+    """前端精排 / 输入清洗开关的初始状态：只读服务端配置，不触发模型加载。"""
     return {
         "rerank_enabled": bool(settings.RAG_RERANK_ENABLED),
         "rerank_model": settings.RAG_RERANK_MODEL,
         "hybrid_enabled": bool(settings.RAG_HYBRID_ENABLED),
         "score_threshold_cosine": settings.RAG_SCORE_THRESHOLD,
         "score_threshold_rerank": settings.RAG_RERANK_SCORE_THRESHOLD,
+        # 输入清洗：mode=off 时前端开关默认收起；fallback=rule 表示模型通道失败会退回规则清洗
+        "clean_mode": settings.INPUT_CLEAN_MODE,
+        "clean_enabled": settings.INPUT_CLEAN_MODE in ("rule", "model"),
+        "clean_fallback": settings.INPUT_CLEAN_FALLBACK,
     }
 
 

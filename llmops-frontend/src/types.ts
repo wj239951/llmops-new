@@ -64,8 +64,25 @@ export interface ChatRequestPayload {
   use_rag?: boolean
   /** 精排开关：null/省略=跟随服务端配置，true/false=本次请求强制开/关 */
   use_rerank?: boolean | null
+  /** 输入清洗开关：null/省略=跟随服务端配置，true/false=本次请求强制开/关 */
+  use_clean?: boolean | null
   conversation_id?: string | null
   memory_enabled?: boolean
+}
+
+/** 输入清洗结果（对应后端 InputCleaner.preprocess 的元信息） */
+export interface CleanInfo {
+  /** off / rule / model */
+  mode: string
+  applied: boolean
+  changed: boolean
+  /** 模型通道失败时的兜底通道：rule / off */
+  fallback?: string | null
+  /** off / empty / too_long / error / already_clean / empty_after_clean */
+  reason?: string | null
+  ms?: number
+  /** 清洗后的文本（仅当内容真的变了才下发，最多 200 字） */
+  clean_query?: string
 }
 
 /** 引用来源（RAG 命中片段） */
@@ -94,6 +111,8 @@ export interface ChatResponse {
   rerank_requested?: boolean | null
   /** 服务端精排是否真的可用（false 时已回退余弦） */
   rerank_available?: boolean | null
+  /** 输入清洗结果（未启用/未改动时 applied=false） */
+  clean?: CleanInfo | null
   /** 阶段耗时（ms），用于展示“时间花在哪” */
   timings?: PhaseTimings | null
 }
@@ -113,6 +132,7 @@ export interface ChatStreamMeta {
   score_mode?: string | null
   rerank_requested?: boolean | null
   rerank_available?: boolean | null
+  clean?: CleanInfo | null
 }
 
 /** SSE 流式聊天的 done 事件（event: done），流结束时一次性给出最终值 */
@@ -132,6 +152,7 @@ export interface ChatStreamDone {
   score_mode?: string | null
   rerank_requested?: boolean | null
   rerank_available?: boolean | null
+  clean?: CleanInfo | null
   timings?: PhaseTimings | null
 }
 
@@ -142,6 +163,12 @@ export interface ChatOptions {
   hybrid_enabled: boolean
   score_threshold_cosine: number
   score_threshold_rerank: number
+  /** 输入清洗模式：off / rule / model */
+  clean_mode: string
+  /** 服务端是否默认开启清洗 */
+  clean_enabled: boolean
+  /** 模型通道失败时的兜底通道 */
+  clean_fallback: string
 }
 
 /** 会话（对应 Conversation） */

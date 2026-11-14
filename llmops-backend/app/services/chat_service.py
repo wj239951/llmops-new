@@ -10,6 +10,7 @@ from app.schemas.chat import ChatRequest
 from app.services.llm_service import LLMService
 from app.services.prompt_service import PromptService
 from app.services.rag_service import RAGService
+from app.services.text_clean import InputCleaner
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -80,12 +81,17 @@ class ChatService:
         temperature = req.temperature
         top_p = req.top_p
 
+        # 输入清洗：脏文本会把 bge-m3 向量带偏，型号类查询还会被全角字符搞失效。
+        # 用户原文保留在 req.query（写库、展示都用它），清洗结果只用于检索与提问。
+        clean_query, clean_meta = self._clean_query(req)
+
         workflow_reasoning = [
             f"用户问题：{req.query}",
             f"模型提供商：{provider}",
             f"模型名称：{model_name or '默认模型'}",
             "步骤1：读取用户输入。",
-            "步骤2：加载系统提示词。",
+            self._clean_note(clean_meta),
+            "步骤3：加载系统提示词。",
         ]
         if req.prompt_id:
             prompt = self.prompt_service.get(db, req.prompt_id)
@@ -96,21 +102,21 @@ class ChatService:
                 model_name = req.model_name or prompt.model_name
                 temperature = prompt.temperature
                 top_p = prompt.top_p
-                workflow_reasoning.append(f"步骤3：使用 Prompt 模板：{prompt_name}。")
+                workflow_reasoning.append(f"步骤4：使用 Prompt 模板：{prompt_name}。")
             else:
-                workflow_reasoning.append("步骤3：未找到指定 Prompt，使用默认系统提示词。")
+                workflow_reasoning.append("步骤4：未找到指定 Prompt，使用默认系统提示词。")
         else:
-            workflow_reasoning.append("步骤3：未选择 Prompt，使用默认系统提示词。")
+            workflow_reasoning.append("步骤4：未选择 Prompt，使用默认系统提示词。")
 
         history: list[dict] = []
         if req.memory_enabled and req.conversation_id:
             history = self._load_history(db, req.conversation_id, settings.MEMORY_MAX_TURNS)
             workflow_reasoning.append(
-                f"步骤4：加载会话记忆，conversation_id={req.conversation_id}，"
+                f"步骤5：加载会话记忆，conversation_id={req.conversation_id}，"
                 f"共 {len(history) // 2} 轮历史对话。"
             )
         else:
-            workflow_reasoning.append("步骤4：未启用会话记忆或无 conversation_id，本轮为独立对话。")
+            workflow_reasoning.append("步骤5：未启用会话记忆或无 conversation_id，本轮为独立对话。")
 
         return {
             "system_prompt": system_prompt,
@@ -121,7 +127,9 @@ class ChatService:
             "prompt_name": prompt_name,
             "workflow_reasoning": workflow_reasoning,
             "history": history,
-            "final_query": req.query,
+            "clean_query": clean_query,
+            "clean_meta": clean_meta,
+            "final_query": clean_query,
             "rag_docs": [],
             "rag_status": "off",
             "score_mode": "off",
@@ -130,16 +138,56 @@ class ChatService:
             "timings": {},
         }
 
+    def _clean_query(self, req: ChatRequest) -> tuple[str, dict]:
+        """按请求开关与全局配置决定本轮是否清洗，返回 (清洗后文本, 元信息)。
+
+        每次请求都重新读 settings 再构造：清洗是纯策略对象（无 I/O、无缓存），
+        这样改 .env 或测试里 monkeypatch 都能立刻生效，不用重启。
+        """
+        mode = (settings.INPUT_CLEAN_MODE or "off").lower()
+        if req.use_clean is False:
+            mode = "off"
+        elif req.use_clean is True and mode == "off":
+            # 服务端没配默认策略时，前端强制开启按规则清洗（模型通道需要额外进程，不隐式启用）
+            mode = "rule"
+        return InputCleaner(mode=mode).preprocess(req.query)
+
+    @staticmethod
+    def _clean_note(meta: dict) -> str:
+        mode = meta.get("mode") or "off"
+        if mode == "off" or not meta.get("applied"):
+            reason = {
+                "empty": "输入为空",
+                "too_long": "输入过长，跳过清洗",
+                "error": "清洗失败，已回退原文",
+                "off": "未启用",
+            }.get(meta.get("reason") or "", "未执行")
+            return f"步骤2：输入清洗未生效（{reason}）。"
+        note = "内容有改动" if meta.get("changed") else "内容本来就干净"
+        fallback = "，模型通道失败已回退规则" if meta.get("fallback") == "rule" else ""
+        return (f"步骤2：输入清洗完成（mode={mode}，{note}，"
+                f"{meta.get('ms', 0)} ms{fallback}）。")
+
+    @staticmethod
+    def _clean_public(meta: dict, clean_query: str) -> dict:
+        """给前端的清洗结果：只在内容真的变了时附带清洗后文本。"""
+        public = {k: meta.get(k) for k in ("mode", "applied", "changed", "fallback", "reason", "ms")}
+        if meta.get("changed"):
+            public["clean_query"] = clean_query[:200]
+        return public
+
     def _apply_rag(self, db: Session, req: ChatRequest, ctx: dict) -> None:
         """执行 RAG 检索并改写 final_query（无命中时保持原问题）。"""
         workflow_reasoning = ctx["workflow_reasoning"]
+        # 检索与提问都用清洗后的文本；用户原文只用于展示与写库
+        query = ctx.get("clean_query") or req.query
         if not req.use_rag:
-            workflow_reasoning.append("步骤5：未启用 RAG，直接调用模型。")
+            workflow_reasoning.append("步骤6：未启用 RAG，直接调用模型。")
             return
         # search() 内部已完成「取宽候选 → 按阈值过滤 → 截断」，此处不再重复过滤
         # timing 只写不读：把检索/精排耗时直接记到本轮 ctx 里，供日志与响应展示
         rag_docs = self.rag.search(
-            db, req.query, use_rerank=req.use_rerank, timing=ctx.get("timings"),
+            db, query, use_rerank=req.use_rerank, timing=ctx.get("timings"),
         )
         ctx["rag_docs"] = rag_docs
         rerank_requested, rerank_available, score_mode = self.rag.rerank_state(req.use_rerank)
@@ -159,19 +207,19 @@ class ChatService:
             ctx["final_query"] = (
                 "请基于以下知识库内容回答问题。\n"
                 "如果知识库内容不足，请说明不足，再结合通用知识补充。\n\n"
-                f"{context}\n\n用户问题：{req.query}"
+                f"{context}\n\n用户问题：{query}"
             )
             rerank_note = (
                 "（精排请求但服务端不可用，已回退向量）"
                 if rerank_requested and not rerank_available else ""
             )
             workflow_reasoning.append(
-                f"步骤5：启用 RAG，检索到 {len(rag_docs)} 条知识片段"
+                f"步骤6：启用 RAG，检索到 {len(rag_docs)} 条知识片段"
                 f"（打分={score_mode}，top1={top1:.4f}，判定 {ctx['rag_status']}）{rerank_note}。"
             )
         else:
             ctx["rag_status"] = "no_hit"
-            workflow_reasoning.append("步骤5：启用 RAG，但未检索到有效知识片段（本次回答不含知识库内容）。")
+            workflow_reasoning.append("步骤6：启用 RAG，但未检索到有效知识片段（本次回答不含知识库内容）。")
 
     @staticmethod
     def _source_items(rag_docs: list) -> list[dict]:
@@ -239,10 +287,11 @@ class ChatService:
         t_prepare = time.perf_counter()
         ctx = self._prepare(db, req)
         timings["prepare_ms"] = int((time.perf_counter() - t_prepare) * 1000)
+        timings["clean_ms"] = (ctx.get("clean_meta") or {}).get("ms", 0)
         ctx["timings"] = timings
         self._apply_rag(db, req, ctx)
         try:
-            ctx["workflow_reasoning"].append("步骤6：调用大模型生成回答。")
+            ctx["workflow_reasoning"].append("步骤7：调用大模型生成回答。")
             t_llm = time.perf_counter()
             result = self.llm.chat(
                 query=ctx["final_query"],
@@ -259,9 +308,9 @@ class ChatService:
             self._save_success_log(
                 db, req, ctx, result["answer"], result["total_tokens"], latency_ms, timings,
             )
-            ctx["workflow_reasoning"].append("步骤7：模型回答生成完成。")
-            ctx["workflow_reasoning"].append("步骤8：将调用日志写入数据库。")
-            ctx["workflow_reasoning"].append(f"步骤9：本次调用耗时 {latency_ms} ms。")
+            ctx["workflow_reasoning"].append("步骤8：模型回答生成完成。")
+            ctx["workflow_reasoning"].append("步骤9：将调用日志写入数据库。")
+            ctx["workflow_reasoning"].append(f"步骤10：本次调用耗时 {latency_ms} ms。")
             reasoning = result.get("reasoning") or "\n".join(ctx["workflow_reasoning"])
             return {
                 "answer": result["answer"],
@@ -277,6 +326,7 @@ class ChatService:
                 "score_mode": ctx.get("score_mode"),
                 "rerank_requested": ctx.get("rerank_requested"),
                 "rerank_available": ctx.get("rerank_available"),
+                "clean": self._clean_public(ctx.get("clean_meta") or {}, ctx.get("clean_query") or ""),
                 "timings": timings,
             }
         except Exception as e:
@@ -302,6 +352,7 @@ class ChatService:
             t_prepare = time.perf_counter()
             ctx = self._prepare(db, req)
             timings["prepare_ms"] = int((time.perf_counter() - t_prepare) * 1000)
+            timings["clean_ms"] = (ctx.get("clean_meta") or {}).get("ms", 0)
             ctx["timings"] = timings
             if req.use_rag:
                 yield {"event": "status", "data": {"phase": "retrieving"}}
@@ -318,9 +369,12 @@ class ChatService:
                     "score_mode": ctx.get("score_mode"),
                     "rerank_requested": ctx.get("rerank_requested"),
                     "rerank_available": ctx.get("rerank_available"),
+                    "clean": self._clean_public(
+                        ctx.get("clean_meta") or {}, ctx.get("clean_query") or ""
+                    ),
                 },
             }
-            ctx["workflow_reasoning"].append("步骤6：调用大模型生成回答（流式）。")
+            ctx["workflow_reasoning"].append("步骤7：调用大模型生成回答（流式）。")
             yield {"event": "status", "data": {"phase": "generating"}}
 
             t_llm = time.perf_counter()
@@ -387,6 +441,7 @@ class ChatService:
                 "score_mode": ctx.get("score_mode"),
                 "rerank_requested": ctx.get("rerank_requested"),
                 "rerank_available": ctx.get("rerank_available"),
+                "clean": self._clean_public(ctx.get("clean_meta") or {}, ctx.get("clean_query") or ""),
                 "timings": timings,
             }
             logger.info(
