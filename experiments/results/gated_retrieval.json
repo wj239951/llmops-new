@@ -1,0 +1,132 @@
+{
+  "meta": {
+    "n_coupled": 60,
+    "n_no_answer": 8,
+    "n_docs": 11,
+    "n_chunks": 21,
+    "candidate_k": 6,
+    "feed_topk": 3,
+    "cosine_threshold": 0.53,
+    "rerank_threshold": 0.76
+  },
+  "coupled": {
+    "none/off": {
+      "n": 60,
+      "n_answerable": 60,
+      "n_no_answer": 0,
+      "full": 0.8333333333333334,
+      "full_doc": 0.9,
+      "coverage": 0.9277777777777778,
+      "first_doc": 0.9666666666666667,
+      "false_accept": null,
+      "full_answerable": 0.8333333333333334,
+      "coverage_answerable": 0.9277777777777778
+    },
+    "none/on-老师": {
+      "n": 60,
+      "n_answerable": 60,
+      "n_no_answer": 0,
+      "full": 0.8833333333333333,
+      "full_doc": 0.9833333333333333,
+      "coverage": 0.95,
+      "first_doc": 0.9833333333333333,
+      "false_accept": null,
+      "full_answerable": 0.8833333333333333,
+      "coverage_answerable": 0.95
+    },
+    "cosine/off": {
+      "n": 60,
+      "n_answerable": 60,
+      "n_no_answer": 0,
+      "full": 0.7666666666666667,
+      "full_doc": 0.8166666666666667,
+      "coverage": 0.8888888888888888,
+      "first_doc": 0.9666666666666667,
+      "false_accept": null,
+      "full_answerable": 0.7666666666666667,
+      "coverage_answerable": 0.8888888888888888
+    },
+    "cosine/on-老师": {
+      "n": 60,
+      "n_answerable": 60,
+      "n_no_answer": 0,
+      "full": 0.85,
+      "full_doc": 0.9,
+      "coverage": 0.9333333333333333,
+      "first_doc": 0.9833333333333333,
+      "false_accept": null,
+      "full_answerable": 0.85,
+      "coverage_answerable": 0.9333333333333333
+    },
+    "rerank/off": {
+      "n": 60,
+      "n_answerable": 60,
+      "n_no_answer": 0,
+      "full": 0.23333333333333334,
+      "full_doc": 0.23333333333333334,
+      "coverage": 0.3972222222222222,
+      "first_doc": 0.5666666666666667,
+      "false_accept": null,
+      "full_answerable": 0.23333333333333334,
+      "coverage_answerable": 0.3972222222222222
+    },
+    "rerank/on-老师": {
+      "n": 60,
+      "n_answerable": 60,
+      "n_no_answer": 0,
+      "full": 0.6,
+      "full_doc": 0.6,
+      "coverage": 0.7666666666666667,
+      "first_doc": 0.9333333333333333,
+      "false_accept": null,
+      "full_answerable": 0.6,
+      "coverage_answerable": 0.7666666666666667
+    }
+  },
+  "no_answer": {
+    "none/off": {
+      "n": 8,
+      "n_answerable": 0,
+      "n_no_answer": 8,
+      "full": 0.0,
+      "full_doc": 0.0,
+      "coverage": 0.0,
+      "first_doc": 0.0,
+      "false_accept": 1.0
+    },
+    "cosine/off": {
+      "n": 8,
+      "n_answerable": 0,
+      "n_no_answer": 8,
+      "full": 0.25,
+      "full_doc": 0.25,
+      "coverage": 0.0,
+      "first_doc": 0.0,
+      "false_accept": 0.75
+    },
+    "rerank/off": {
+      "n": 8,
+      "n_answerable": 0,
+      "n_no_answer": 8,
+      "full": 1.0,
+      "full_doc": 1.0,
+      "coverage": 0.0,
+      "first_doc": 0.0,
+      "false_accept": 0.0
+    }
+  },
+  "latency": {
+    "none/off": {
+      "retrieve_ms": 0.9210489271584177,
+      "rerank_ms": 0
+    },
+    "cosine/off": {
+      "retrieve_ms": 0.9110854824088634,
+      "rerank_ms": 0
+    },
+    "rerank/off": {
+      "retrieve_ms": 0.9607532232504098,
+      "rerank_ms": 259.8861779586377
+    }
+  }
+}

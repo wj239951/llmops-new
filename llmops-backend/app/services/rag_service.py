@@ -192,6 +192,16 @@ class RAGService:
             candidate_k = max(feed_topk, settings.RAG_CANDIDATE_K)
 
         t_retrieve = time.perf_counter()
+        if not rerank_requested:
+            # 默认（cosine）链路上的查询分解：此前分解只挂在 _rerank_passed 里，
+            # 而精排默认关闭 → 复合问句在默认配置下从未被拆过。这里提到检索入口，
+            # 单主题问题（decompose 返回 [query]）走原路径，不改变阈值标定尺度。
+            from app.services import query_decompose
+
+            subs = query_decompose.decompose(query)
+            if len(subs) > 1:
+                return self._multi_query_cosine(db, subs, candidate_k, feed_topk, timing)
+
         chunks = self._retrieve_candidates(db, query, candidate_k)
         if chunks is None:
             return []
@@ -243,6 +253,31 @@ class RAGService:
             # 并把真实原因留在日志里，避免静默失败。
             logger.warning("RAG 向量检索失败，本轮按空上下文处理：%s", exc)
             return None
+
+    def _multi_query_cosine(self, db, subs: list[str], candidate_k: int, feed_topk: int,
+                            timing: dict | None = None) -> list[RetrievedChunk]:
+        """多子句 × cosine：每个子句各自召回、各自过闸，按 (doc, chunk) 取最高分合并。
+
+        与精排分支的合并逻辑一致（_rerank_passed），区别只是打分用 cosine，
+        且保留「型号逐字命中豁免」——这类片段余弦分天然偏低，不能按阈值一刀切。
+        """
+        started = time.perf_counter()
+        bypass = settings.RAG_HYBRID_EXACT_BYPASS
+        best: dict[tuple, RetrievedChunk] = {}
+        for sub in subs:
+            chunks = self._retrieve_candidates(db, sub, candidate_k)
+            if not chunks:
+                continue
+            for c in chunks:
+                if c.score < settings.RAG_SCORE_THRESHOLD and not (bypass and c.match == "exact"):
+                    continue
+                key = (c.doc_id, c.chunk)
+                if key not in best or c.score > best[key].score:
+                    best[key] = c
+        if timing is not None:
+            timing["retrieve_ms"] = int((time.perf_counter() - started) * 1000)
+        ordered = sorted(best.values(), key=lambda c: (c.match == "exact", c.score), reverse=True)
+        return ordered[:feed_topk]
 
     def _rerank_passed(self, db, query: str, chunks, candidate_k: int) -> list[RetrievedChunk]:
         """精排过闸：复合问句按主题子问句各自过闸后合并去重，单主题走原路。"""

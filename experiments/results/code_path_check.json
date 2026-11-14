@@ -1,0 +1,14 @@
+{
+  "note": "走真实 RAGService.search()；检索层替换为内存向量，其余未改",
+  "cosine_threshold": 0.53,
+  "off": {
+    "n": 60,
+    "full": 0.7666666666666667,
+    "coverage": 0.8888888888888888
+  },
+  "on_teacher": {
+    "n": 60,
+    "full": 0.85,
+    "coverage": 0.9333333333333333
+  }
+}

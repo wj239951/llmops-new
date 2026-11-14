@@ -141,3 +141,68 @@ def test_search_failed_sub_retrieval_skipped(search_env):
     search_env.setattr(rerank_service, "rerank_chunks", _fake_rerank({("子问B", 2): 0.88}))
     out = RAGService().search(None, q)
     assert [(c.doc_id, c.score) for c in out] == [(2, 0.88)]
+
+
+# ── 默认（cosine）链路：分解在检索入口生效（精排关闭） ────────────────────
+
+
+@pytest.fixture
+def cosine_env(monkeypatch):
+    """精排关闭 + 阈值 0.53，模拟线上默认配置。"""
+    monkeypatch.setattr(settings, "RAG_RERANK_ENABLED", False)
+    monkeypatch.setattr(settings, "RAG_SCORE_THRESHOLD", 0.53)
+    monkeypatch.setattr(settings, "RAG_HYBRID_ENABLED", False)
+    monkeypatch.setattr(RAGService, "rerank_state",
+                        lambda self, use_rerank=None: (False, False, "cosine"))
+    return monkeypatch
+
+
+def test_cosine_multi_sub_union_filters_by_threshold(cosine_env):
+    """两个子问句各自召回，过 0.53 后合并去重，同一片段取最高分。"""
+    q = "复合问题"
+    pool = {
+        "子问A": [_chunk(1), _chunk(2)],
+        "子问B": [_chunk(1), _chunk(3)],
+    }
+    scores = {
+        ("子问A", 1): 0.60, ("子问A", 2): 0.55,
+        ("子问B", 1): 0.72, ("子问B", 3): 0.40,   # 0.40 < 0.53 应被滤掉
+    }
+
+    def retrieve(self, db, query, k):
+        return [replace(c, score=scores[(query, c.doc_id)]) for c in pool.get(query, [])]
+
+    cosine_env.setattr(RAGService, "_retrieve_candidates", retrieve)
+    cosine_env.setattr(query_decompose, "decompose", lambda query: ["子问A", "子问B"])
+    out = RAGService().search(None, q)
+    assert [(c.doc_id, c.score) for c in out] == [(1, 0.72), (2, 0.55)]
+
+
+def test_cosine_single_sub_keeps_original_path(cosine_env):
+    """单主题问题不拆：仍然只召回一次，不吃多子句开销。"""
+    q = "单主题问题"
+    calls = []
+
+    def retrieve(self, db, query, k):
+        calls.append(query)
+        return [replace(_chunk(1), score=0.80)]
+
+    cosine_env.setattr(RAGService, "_retrieve_candidates", retrieve)
+    cosine_env.setattr(query_decompose, "decompose", lambda query: [query])
+    out = RAGService().search(None, q)
+    assert [c.doc_id for c in out] == [1]
+    assert calls == [q]
+
+
+def test_cosine_multi_sub_exact_bypass_survives(cosine_env):
+    """型号逐字命中即使分数低于阈值也要放行——这是既有语义，分解不能破坏它。"""
+    q = "复合问题"
+    pool = {
+        "子问A": [replace(_chunk(1), score=0.20, match="exact")],
+        "子问B": [replace(_chunk(2), score=0.60)],
+    }
+    cosine_env.setattr(RAGService, "_retrieve_candidates", lambda self, db, query, k: pool.get(query))
+    cosine_env.setattr(query_decompose, "decompose", lambda query: ["子问A", "子问B"])
+    out = RAGService().search(None, q)
+    # exact 优先排在最前，即使 0.20 < 0.60
+    assert [(c.doc_id, c.match) for c in out] == [(1, "exact"), (2, "vector")]

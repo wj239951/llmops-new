@@ -280,6 +280,8 @@ cd llmops-backend
 .venv\Scripts\python.exe tools/evaluate_hybrid.py    # 混合检索四模式 × 三题库（需精排权重）
 .venv\Scripts\python.exe tools/evaluate_clean_retrieval.py --noise heavy   # 输入清洗前后对比
 .venv\Scripts\python.exe tools/evaluate_decompose_retrieval.py --feed-topk 3   # 查询分解：不拆 / 老师 / 学生
+.venv\Scripts\python.exe tools/evaluate_gated_retrieval.py    # 三档闸门 × 分解前后（含拒答率）
+.venv\Scripts\python.exe tools/verify_decompose_entry.py      # 生产代码路径校验（不需 Chroma/MySQL）
 ```
 
 - 题库：`experiments/eval_qa.jsonl` 45 条自然语言（21 exact / 16 paraphrase / 4 远域无答案 / 4 近域无答案）+ `eval_qa_hard.jsonl` 15 条精确编号长问句 + `eval_qa_token.jsonl` 15 条搜索框短查询
@@ -303,6 +305,9 @@ cd llmops-backend
 - **流式依赖代理不缓冲**：SSE 已带 `X-Accel-Buffering: no`，nginx 默认 `proxy_buffering on` 会把增量输出压成一次性返回；服务器经 Caddy 反代，自建其它网关需关闭响应缓冲。当前也没有 SSE 心跳，开 RAG 精排时 `retrieving` 到 `meta` 之间可能数秒无输出，代理空闲超时过短会断流。
 - **流式不做断线续传**：没有 `Last-Event-ID`，刷新或断网后只能重发请求（会重新生成、重复计费）；客户端主动取消不写调用日志，生成器被取消时已生成部分不落库。
 - **流式时延尚未上报**：`first_token_ms` / `latency_ms` 只写进 `done` 与服务端日志，没有指标面板；本地一次联调的数值与冷启动说明见 [docs/07](docs/07.流式改造报告.md) 7.4。`deepseek-reasoner` 的思维链与回答分开推送，老版本 Ollama 内联的 `<think>…</think>` 只能在流结束后剥离。
+- **默认链路（cosine 0.53）的短板是拒答**：[docs/11](docs/11.闸门评测与入口分解报告.md) 实测，
+  60 条耦合题上 full（片段级）76.7%，但 8 条无答案题有 **6 条被放行**（75%）。
+  开精排能把误接受压到 0%，代价是 full 掉到 23.3%；配查询分解回到 60.0%，这是目前唯一的"双高"组合。
 - **鉴权是演示口令**，不是生产级认证方案。
 - 单机部署，无水平扩展；尚未接入 CI。
 - **输入清洗只在短查询上有可测收益**：75 条题弄脏后重测，长句（exact / paraphrase / 编号）
@@ -340,6 +345,7 @@ cd llmops-backend
 - [docs/08.输入清洗接入报告](docs/08.输入清洗接入报告.md) —— 两条清洗通道、还原率实测、模型为什么不修乱码
 - [docs/09.输入清洗检索评测报告](docs/09.输入清洗检索评测报告.md) —— 脏化 75 条题前后的检索指标，以及评测反过来修掉的三个清洗缺陷
 - [docs/10.查询分解检索评测报告](docs/10.查询分解检索评测报告.md) —— 复合问句拆不拆的检索收益，0.8B 蒸馏学生 vs 老师 vs 不拆
+- [docs/11.闸门评测与入口分解报告](docs/11.闸门评测与入口分解报告.md) —— 统一"过闸后"口径，复现 23.3%/60.0%，并把分解提到检索入口
 
 ---
 
