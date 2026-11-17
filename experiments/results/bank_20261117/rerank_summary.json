@@ -1,0 +1,115 @@
+{
+  "generated_at": "2026-11-17T14:47:44",
+  "elapsed_seconds": 72.41,
+  "model": {
+    "ref": "D:\\models\\bge-reranker-v2-m3",
+    "device": "cuda",
+    "load_seconds": 15.54,
+    "rerank_ms_per_query_mean": 257.9,
+    "rerank_ms_per_query_median": 257.5,
+    "rerank_ms_per_query_max": 726.8,
+    "candidate_k": 6
+  },
+  "questions": {
+    "path": "experiments/eval_bank.jsonl",
+    "total": 183,
+    "answerable": 148,
+    "no_answer": 35,
+    "by_type": {
+      "exact": 120,
+      "no_answer_far": 15,
+      "no_answer_near": 20,
+      "paraphrase": 28
+    }
+  },
+  "config": {
+    "threshold": 0.76,
+    "margin": 0.06,
+    "candidate_k": 6,
+    "feed_topk": 3
+  },
+  "rerank_metrics": {
+    "recall_at_candidate_k_pct": 100.0,
+    "mrr": 0.9662,
+    "coverage_pct": 98.65,
+    "hit_at_feed_pct": 98.65,
+    "top1_accuracy_pct": 91.89,
+    "top1_accuracy_among_fed_pct": 93.15,
+    "false_accept_far_pct": 0.0,
+    "false_accept_near_pct": 30.0,
+    "false_accept_all_pct": 17.14,
+    "missed_answerable_ids": [
+      "b074",
+      "b104"
+    ],
+    "false_accepted_ids": [
+      "b149",
+      "b156",
+      "b157",
+      "b160",
+      "b164",
+      "b167"
+    ]
+  },
+  "score_separation": {
+    "answerable_top1_min": 0.6401,
+    "answerable_top1_median": 0.9966,
+    "answerable_top1_mean": 0.9833,
+    "correct_hit_top1_min": 0.6401,
+    "no_answer_top1_max": 0.9452,
+    "no_answer_top1_mean": 0.3618
+  },
+  "recommendations": {
+    "threshold": 0.95,
+    "threshold_balanced_accuracy_pct": 97.3,
+    "stable_threshold_range": [
+      0.73,
+      0.95
+    ],
+    "max_threshold_keep_full_recall": 0.64,
+    "margin": 0.23,
+    "margin_youden_j_pct": 10.59,
+    "margin_to_capture_all_wrong": 0.25,
+    "margin_data_available": true,
+    "correct_downgraded_at_current_margin_pct": 0.0
+  },
+  "cosine_baseline": {
+    "source": "experiments/results/summary.json",
+    "config": {
+      "threshold": 0.53,
+      "margin": 0.06,
+      "candidate_k": 6,
+      "feed_topk": 3
+    },
+    "baseline": {
+      "recall_at_candidate_k_pct": 100.0,
+      "mrr": 1.0,
+      "coverage_pct": 100.0,
+      "hit_at_feed_pct": 100.0,
+      "top1_accuracy_pct": 100.0,
+      "top1_accuracy_among_fed_pct": 100.0,
+      "false_accept_far_pct": 100.0,
+      "false_accept_near_pct": 100.0,
+      "false_accept_all_pct": 100.0,
+      "missed_answerable_ids": [],
+      "false_accepted_ids": [
+        "q38",
+        "q39",
+        "q40",
+        "q41",
+        "q42",
+        "q43",
+        "q44",
+        "q45"
+      ]
+    },
+    "score_separation": {
+      "answerable_top1_min": 0.5808,
+      "answerable_top1_median": 0.6641,
+      "answerable_top1_mean": 0.6586,
+      "correct_hit_top1_min": 0.5808,
+      "no_answer_top1_max": 0.679,
+      "no_answer_top1_mean": 0.5954
+    }
+  }
+}

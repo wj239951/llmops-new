@@ -1,0 +1,88 @@
+{
+  "generated_at": "2026-11-17T14:52:13",
+  "elapsed_seconds": 6.52,
+  "questions": {
+    "path": "experiments/eval_bank.jsonl",
+    "total": 183,
+    "answerable": 148,
+    "no_answer": 35,
+    "by_type": {
+      "exact": 120,
+      "paraphrase": 28,
+      "no_answer_near": 20,
+      "no_answer_far": 15
+    }
+  },
+  "collection": {
+    "name": "knowledge_bge_m3",
+    "vectors": 338
+  },
+  "config": {
+    "threshold": 0.56,
+    "margin": 0.06,
+    "candidate_k": 6,
+    "feed_topk": 3
+  },
+  "baseline": {
+    "recall_at_candidate_k_pct": 100.0,
+    "mrr": 0.8992,
+    "coverage_pct": 100.0,
+    "hit_at_feed_pct": 97.97,
+    "top1_accuracy_pct": 81.76,
+    "top1_accuracy_among_fed_pct": 81.76,
+    "false_accept_far_pct": 33.33,
+    "false_accept_near_pct": 100.0,
+    "false_accept_all_pct": 71.43,
+    "missed_answerable_ids": [
+      "b013",
+      "b074",
+      "b104"
+    ],
+    "false_accepted_ids": [
+      "b149",
+      "b150",
+      "b151",
+      "b152",
+      "b153",
+      "b154",
+      "b155",
+      "b156",
+      "b157",
+      "b158",
+      "b159",
+      "b160",
+      "b161",
+      "b162",
+      "b163",
+      "b164",
+      "b165",
+      "b166",
+      "b167",
+      "b168",
+      "b169",
+      "b171",
+      "b174",
+      "b175",
+      "b176"
+    ]
+  },
+  "score_separation": {
+    "answerable_top1_min": 0.5696,
+    "answerable_top1_median": 0.7411,
+    "answerable_top1_mean": 0.7394,
+    "correct_hit_top1_min": 0.5909,
+    "no_answer_top1_max": 0.7377,
+    "no_answer_top1_mean": 0.6214
+  },
+  "recommendations": {
+    "threshold": 0.71,
+    "threshold_balanced_accuracy_pct": 82.54,
+    "stable_threshold_range": null,
+    "max_threshold_keep_full_recall": 0.56,
+    "margin": 0.06,
+    "margin_youden_j_pct": 9.46,
+    "margin_to_capture_all_wrong": 0.289,
+    "margin_data_available": true,
+    "correct_downgraded_at_current_margin_pct": 1.65
+  }
+}

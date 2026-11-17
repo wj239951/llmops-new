@@ -1,0 +1,14 @@
+{
+  "off": {
+    "n": 20,
+    "hit3_pct": 15.0,
+    "top1_pct": 10.0,
+    "changed": 0
+  },
+  "rule": {
+    "n": 20,
+    "hit3_pct": 100.0,
+    "top1_pct": 55.0,
+    "changed": 20
+  }
+}

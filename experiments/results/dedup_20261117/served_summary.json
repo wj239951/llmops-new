@@ -1,0 +1,30 @@
+{
+  "rerank0_dedup0": {
+    "hit3_pct": 99.3,
+    "top1_pct": 81.1,
+    "coverage_pct": 95.1,
+    "false_accept_pct": 74.3,
+    "dupe_cases": 2
+  },
+  "rerank0_dedup1": {
+    "hit3_pct": 99.3,
+    "top1_pct": 81.1,
+    "coverage_pct": 95.1,
+    "false_accept_pct": 74.3,
+    "dupe_cases": 0
+  },
+  "rerank1_dedup0": {
+    "hit3_pct": 96.6,
+    "top1_pct": 89.9,
+    "coverage_pct": 79.2,
+    "false_accept_pct": 5.7,
+    "dupe_cases": 0
+  },
+  "rerank1_dedup1": {
+    "hit3_pct": 96.6,
+    "top1_pct": 89.9,
+    "coverage_pct": 79.2,
+    "false_accept_pct": 5.7,
+    "dupe_cases": 0
+  }
+}

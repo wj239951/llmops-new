@@ -1,0 +1,3 @@
+﻿dataset,mode,questions,answerable,no_answer,recall_at_k,mrr,coverage,hit_at_feed,top1_accuracy,false_accept_far,false_accept_near,false_accept_all,mean_latency_ms,mean_rerank_ms
+eval_bank,dense,183,148,35,100.0%,0.8992,100.0%, 98.6%, 81.8%, 53.3%,100.0%, 80.0%,43.1,
+eval_bank,hybrid,183,148,35,100.0%,0.9006,100.0%, 98.6%, 81.8%, 53.3%,100.0%, 80.0%,53.6,

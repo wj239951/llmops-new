@@ -1,0 +1,7 @@
+﻿dataset,mode,questions,answerable,no_answer,recall_at_k,mrr,coverage,hit_at_feed,top1_accuracy,false_accept_far,false_accept_near,false_accept_all,mean_latency_ms,mean_rerank_ms
+eval_qa,dense,45,37,8,100.0%,0.8176,100.0%, 97.3%, 67.6%,100.0%,100.0%,100.0%,30.4,
+eval_qa,hybrid,45,37,8,100.0%,0.8311,100.0%, 97.3%, 70.3%,100.0%,100.0%,100.0%,39.9,
+hard,dense,15,15,0, 93.3%,0.8167, 93.3%, 80.0%, 66.7%,  0.0%,  0.0%,  0.0%,28.2,
+hard,hybrid,15,15,0,100.0%,0.83, 93.3%, 80.0%, 66.7%,  0.0%,  0.0%,  0.0%,33.0,
+token,dense,15,15,0, 53.3%,0.3, 26.7%,  6.7%,  6.7%,  0.0%,  0.0%,  0.0%,29.2,
+token,hybrid,15,15,0, 93.3%,0.3833, 26.7%,  6.7%,  6.7%,  0.0%,  0.0%,  0.0%,44.4,

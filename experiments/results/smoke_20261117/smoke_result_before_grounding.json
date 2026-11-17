@@ -1,0 +1,190 @@
+{
+  "conversation_id": "smoke-9f357c79",
+  "cases": [
+    {
+      "name": "单轮命中",
+      "meta": {
+        "conversation_id": null,
+        "model_provider": "ollama",
+        "model_name": "deepseek-r1:7b",
+        "prompt_name": null,
+        "rag_status": "hit",
+        "sources": [
+          {
+            "title": "89_注塑机ZX-1200巡检与保养手册.txt",
+            "snippet": "新乡工厂一号车间注塑机 ZX-1200 巡检与保养手册\n\n一、设备参数\nZX-1200 为锁模力 1200 千牛、螺杆直径 36 毫米、最大注射量 260 克、电机功率 11 千瓦的注塑机，安装于注塑车间一号车间，主要生产接线端子与小型结构件。\n\n二、日常点检\n1. 检查液压油温，正常范围 30 至 55 摄氏度，低于 20 摄氏度不得开机。\n2. 检查料筒一段温度，不高于 265 摄氏度，与设定",
+            "source": "89_注塑机ZX-1200巡检与保养手册.txt",
+            "score": 0.9978208541870117,
+            "match": "exact"
+          }
+        ],
+        "score_mode": "rerank",
+        "rerank_requested": true,
+        "rerank_available": true,
+        "clean": {
+          "mode": "off",
+          "applied": false,
+          "changed": false,
+          "fallback": null,
+          "fallback_reason": null,
+          "reason": "off",
+          "ms": 0,
+          "requested_model": false
+        },
+        "rewrite": null
+      },
+      "answer": "注塑机 ZX-1200 的锁模力是 1200 千牛。",
+      "timings": {
+        "prepare_ms": 0,
+        "clean_ms": 0,
+        "retrieve_ms": 1590,
+        "rerank_ms": 1303,
+        "llm_ms": 17143,
+        "first_token_ms": 9768,
+        "total_ms": 20039
+      }
+    },
+    {
+      "name": "近域无答案",
+      "meta": {
+        "conversation_id": null,
+        "model_provider": "ollama",
+        "model_name": "deepseek-r1:7b",
+        "prompt_name": null,
+        "rag_status": "no_hit",
+        "sources": [],
+        "score_mode": "rerank",
+        "rerank_requested": true,
+        "rerank_available": true,
+        "clean": {
+          "mode": "off",
+          "applied": false,
+          "changed": false,
+          "fallback": null,
+          "fallback_reason": null,
+          "reason": "off",
+          "ms": 0,
+          "requested_model": false
+        },
+        "rewrite": null
+      },
+      "answer": "ZX-1200 型号的注塑机模具重量上限通常为 1,000 公斤。建议在实际操作中进行测试以确保安全性。",
+      "timings": {
+        "prepare_ms": 0,
+        "clean_ms": 0,
+        "retrieve_ms": 4269,
+        "rerank_ms": 579,
+        "llm_ms": 14444,
+        "first_token_ms": 11946,
+        "total_ms": 19294
+      }
+    },
+    {
+      "name": "多轮·第 1 轮",
+      "meta": {
+        "conversation_id": "smoke-9f357c79",
+        "model_provider": "ollama",
+        "model_name": "deepseek-r1:7b",
+        "prompt_name": null,
+        "rag_status": "hit",
+        "sources": [
+          {
+            "title": "89_注塑机ZX-1200巡检与保养手册.txt",
+            "snippet": "新乡工厂一号车间注塑机 ZX-1200 巡检与保养手册\n\n一、设备参数\nZX-1200 为锁模力 1200 千牛、螺杆直径 36 毫米、最大注射量 260 克、电机功率 11 千瓦的注塑机，安装于注塑车间一号车间，主要生产接线端子与小型结构件。\n\n二、日常点检\n1. 检查液压油温，正常范围 30 至 55 摄氏度，低于 20 摄氏度不得开机。\n2. 检查料筒一段温度，不高于 265 摄氏度，与设定",
+            "source": "89_注塑机ZX-1200巡检与保养手册.txt",
+            "score": 0.9962826371192932,
+            "match": "exact"
+          }
+        ],
+        "score_mode": "rerank",
+        "rerank_requested": true,
+        "rerank_available": true,
+        "clean": {
+          "mode": "off",
+          "applied": false,
+          "changed": false,
+          "fallback": null,
+          "fallback_reason": null,
+          "reason": "off",
+          "ms": 0,
+          "requested_model": false
+        },
+        "rewrite": null
+      },
+      "answer": "注塑机 ZX-1200 的最大注射量是 260 克。",
+      "timings": {
+        "prepare_ms": 4,
+        "clean_ms": 0,
+        "retrieve_ms": 3972,
+        "rerank_ms": 404,
+        "llm_ms": 11332,
+        "first_token_ms": 11001,
+        "total_ms": 15715
+      }
+    },
+    {
+      "name": "多轮·第 2 轮（指代）",
+      "meta": {
+        "conversation_id": "smoke-9f357c79",
+        "model_provider": "ollama",
+        "model_name": "deepseek-r1:7b",
+        "prompt_name": null,
+        "rag_status": "hit",
+        "sources": [
+          {
+            "title": "201_注塑机ZX-1200年度大修方案.txt",
+            "snippet": "ZX-1200 注塑机年度大修方案\n\n一、编制依据\n依据 ZX-1200 设备说明书、本厂《设备检修管理制度》与上一年度维修记录编制。\n本方案适用于注塑车间一号车间的 ZX-1200，检修周期为每 12 个月一次，与生产计划同步安排。\n\n二、检修范围\n1. 液压油滤芯。\n2. 螺杆与料筒间隙检测。\n3. 压力表与温度传感器校验。\n4. 液压油整箱更换。\n以上项目大修时整体拆检，日常按手册规定周期执",
+            "source": "201_注塑机ZX-1200年度大修方案.txt",
+            "score": 0.9587531685829163,
+            "match": "exact"
+          },
+          {
+            "title": "89_注塑机ZX-1200巡检与保养手册.txt",
+            "snippet": "四、保养周期\n1. 液压油滤芯，每 400 小时一次。\n2. 螺杆与料筒间隙检测，每 1500 小时一次。\n3. 压力表与温度传感器校验，每半年一次。\n4. 液压油整箱更换，每 3000 小时一次。\n\n五、记录与备件\n点检表每班填写，设备科每周抽查一次，记录保存两年。\n本机型专用备件编号以 ZX12 开头，领用需在设备科台账登记，未经审批不得外借。\n耗材必须使用规定型号：链条润滑脂 RL-2077",
+            "source": "89_注塑机ZX-1200巡检与保养手册.txt",
+            "score": 0.9567853808403015,
+            "match": "vector"
+          },
+          {
+            "title": "11_注塑机ZX-2030巡检与保养手册.txt",
+            "snippet": "四、保养周期\n1. 每 400 小时更换液压油滤芯，每 3000 小时检测油品清洁度，颗粒度超过 NAS 9 级整箱换油。\n2. 每 1500 小时检查螺杆与料筒间隙，间隙超过 0.35 毫米报设备科评估更换。\n3. 每半年校验一次压力表与温度传感器，超期未校验的仪表不得作为工艺依据。\n\n五、记录与责任\n点检表每班填写，设备科每周抽查一次，记录保存两年。备件领用走 ZX26 系列编号，未登记不得出",
+            "source": "11_注塑机ZX-2030巡检与保养手册.txt",
+            "score": 0.9390276074409485,
+            "match": "vector"
+          }
+        ],
+        "score_mode": "rerank",
+        "rerank_requested": true,
+        "rerank_available": true,
+        "clean": {
+          "mode": "off",
+          "applied": false,
+          "changed": false,
+          "fallback": null,
+          "fallback_reason": null,
+          "reason": "off",
+          "ms": 0,
+          "requested_model": false
+        },
+        "rewrite": {
+          "mode": "rule",
+          "via": "rule",
+          "changed": true,
+          "query": "zx-1200的液压油滤芯多久换一次呢？",
+          "fallback": null,
+          "ms": 0
+        }
+      },
+      "answer": "注塑机 ZX-1200 的液压油滤芯每 400 小时更换一次。\n\n如果需要更详细的信息或有其他问题，请随时询问！",
+      "timings": {
+        "prepare_ms": 2,
+        "clean_ms": 0,
+        "retrieve_ms": 3934,
+        "rerank_ms": 714,
+        "llm_ms": 17841,
+        "first_token_ms": 11525,
+        "total_ms": 22494
+      }
+    }
+  ]
+}

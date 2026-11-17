@@ -1,0 +1,32 @@
+{
+  "n": 30,
+  "answerable": {
+    "n": 10,
+    "correct": 10,
+    "wrong": 0,
+    "false_refusal": 0,
+    "with_citation": 10,
+    "citation_correct": 10
+  },
+  "refusal": {
+    "n": 20,
+    "refused": 19,
+    "not_refused": 1,
+    "by_type": {
+      "no_answer_near": {
+        "n": 10,
+        "refused": 9
+      },
+      "no_answer_far": {
+        "n": 5,
+        "refused": 5
+      },
+      "lure": {
+        "n": 5,
+        "refused": 5
+      }
+    }
+  },
+  "overall_pass_pct": 96.7,
+  "mean_elapsed_s": 8.0
+}

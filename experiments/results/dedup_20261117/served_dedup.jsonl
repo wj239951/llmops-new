@@ -1,0 +1,183 @@
+{"id": "b001", "type": "exact", "fed": [89], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b002", "type": "exact", "fed": [89], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b003", "type": "exact", "fed": [201, 89], "hit3": 1, "top1": 0, "doc_dupes": 0}
+{"id": "b004", "type": "paraphrase", "fed": [89], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b005", "type": "exact", "fed": [229, 91, 89], "hit3": 1, "top1": 0, "doc_dupes": 0}
+{"id": "b006", "type": "exact", "fed": [93], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b007", "type": "exact", "fed": [93], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b008", "type": "exact", "fed": [93, 202, 89], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b009", "type": "paraphrase", "fed": [93], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b010", "type": "exact", "fed": [95, 93, 94], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b011", "type": "exact", "fed": [97], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b012", "type": "exact", "fed": [97], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b013", "type": "exact", "fed": [97, 203, 89], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b014", "type": "paraphrase", "fed": [97], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b015", "type": "exact", "fed": [99, 97, 98], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b016", "type": "exact", "fed": [101], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b017", "type": "exact", "fed": [101], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b018", "type": "exact", "fed": [101, 204], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b019", "type": "paraphrase", "fed": [101], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b020", "type": "exact", "fed": [103, 101, 102], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b021", "type": "exact", "fed": [105], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b022", "type": "exact", "fed": [105], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b023", "type": "exact", "fed": [105, 205], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b024", "type": "paraphrase", "fed": [105], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b025", "type": "exact", "fed": [230, 107, 105], "hit3": 1, "top1": 0, "doc_dupes": 0}
+{"id": "b026", "type": "exact", "fed": [109], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b027", "type": "exact", "fed": [109], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b028", "type": "exact", "fed": [109, 206], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b029", "type": "paraphrase", "fed": [109], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b030", "type": "exact", "fed": [111, 109, 110], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b031", "type": "exact", "fed": [113], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b032", "type": "exact", "fed": [113], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b033", "type": "exact", "fed": [113, 207], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b034", "type": "paraphrase", "fed": [113], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b035", "type": "exact", "fed": [115, 113], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b036", "type": "exact", "fed": [117, 118], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b037", "type": "exact", "fed": [117], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b038", "type": "exact", "fed": [117, 208], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b039", "type": "paraphrase", "fed": [117], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b040", "type": "exact", "fed": [119, 117, 118], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b041", "type": "exact", "fed": [121], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b042", "type": "exact", "fed": [121], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b043", "type": "exact", "fed": [121, 209], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b044", "type": "paraphrase", "fed": [], "hit3": 0, "top1": 0, "doc_dupes": 0}
+{"id": "b045", "type": "exact", "fed": [231, 123, 121], "hit3": 1, "top1": 0, "doc_dupes": 0}
+{"id": "b046", "type": "exact", "fed": [125, 126], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b047", "type": "exact", "fed": [125], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b048", "type": "exact", "fed": [125, 210], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b049", "type": "paraphrase", "fed": [125, 126], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b050", "type": "exact", "fed": [127, 125, 126], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b051", "type": "exact", "fed": [129], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b052", "type": "exact", "fed": [129, 130], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b053", "type": "exact", "fed": [129, 211], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b054", "type": "paraphrase", "fed": [129], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b055", "type": "exact", "fed": [131, 129, 130], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b056", "type": "exact", "fed": [133, 134], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b057", "type": "exact", "fed": [133], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b058", "type": "exact", "fed": [133, 212], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b059", "type": "paraphrase", "fed": [133], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b060", "type": "exact", "fed": [135, 133, 134], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b061", "type": "exact", "fed": [137], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b062", "type": "exact", "fed": [137], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b063", "type": "exact", "fed": [137, 213], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b064", "type": "paraphrase", "fed": [], "hit3": 0, "top1": 0, "doc_dupes": 0}
+{"id": "b065", "type": "exact", "fed": [232, 139, 137], "hit3": 1, "top1": 0, "doc_dupes": 0}
+{"id": "b066", "type": "exact", "fed": [141], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b067", "type": "exact", "fed": [141, 142], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b068", "type": "exact", "fed": [141, 214, 144], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b069", "type": "paraphrase", "fed": [141], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b070", "type": "exact", "fed": [143, 141, 142], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b071", "type": "exact", "fed": [145], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b072", "type": "exact", "fed": [145], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b073", "type": "exact", "fed": [145, 215], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b074", "type": "paraphrase", "fed": [], "hit3": 0, "top1": 0, "doc_dupes": 0}
+{"id": "b075", "type": "exact", "fed": [147, 145], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b076", "type": "exact", "fed": [149, 150], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b077", "type": "exact", "fed": [149], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b078", "type": "exact", "fed": [216, 149], "hit3": 1, "top1": 0, "doc_dupes": 0}
+{"id": "b079", "type": "paraphrase", "fed": [149], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b080", "type": "exact", "fed": [151, 149, 150], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b081", "type": "exact", "fed": [153], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b082", "type": "exact", "fed": [153], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b083", "type": "exact", "fed": [217, 153, 154], "hit3": 1, "top1": 0, "doc_dupes": 0}
+{"id": "b084", "type": "paraphrase", "fed": [153], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b085", "type": "exact", "fed": [233, 155, 153], "hit3": 1, "top1": 0, "doc_dupes": 0}
+{"id": "b086", "type": "exact", "fed": [157], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b087", "type": "exact", "fed": [157, 158], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b088", "type": "exact", "fed": [157, 218], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b089", "type": "paraphrase", "fed": [157, 160], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b090", "type": "exact", "fed": [159, 157, 158], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b091", "type": "exact", "fed": [161], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b092", "type": "exact", "fed": [161, 162], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b093", "type": "exact", "fed": [161, 219], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b094", "type": "paraphrase", "fed": [161], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b095", "type": "exact", "fed": [163, 161, 162], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b096", "type": "exact", "fed": [165], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b097", "type": "exact", "fed": [165], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b098", "type": "exact", "fed": [165, 220, 168], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b099", "type": "paraphrase", "fed": [165], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b100", "type": "exact", "fed": [167, 165], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b101", "type": "exact", "fed": [169], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b102", "type": "exact", "fed": [169, 170], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b103", "type": "exact", "fed": [221, 169], "hit3": 1, "top1": 0, "doc_dupes": 0}
+{"id": "b104", "type": "paraphrase", "fed": [], "hit3": 0, "top1": 0, "doc_dupes": 0}
+{"id": "b105", "type": "exact", "fed": [234, 171, 169], "hit3": 1, "top1": 0, "doc_dupes": 0}
+{"id": "b106", "type": "exact", "fed": [173], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b107", "type": "exact", "fed": [173], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b108", "type": "exact", "fed": [173, 222, 176], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b109", "type": "paraphrase", "fed": [173], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b110", "type": "exact", "fed": [175, 173, 174], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b111", "type": "exact", "fed": [177], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b112", "type": "exact", "fed": [177, 223], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b113", "type": "exact", "fed": [177, 223, 180], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b114", "type": "paraphrase", "fed": [177], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b115", "type": "exact", "fed": [179, 177, 178], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b116", "type": "exact", "fed": [181], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b117", "type": "exact", "fed": [181], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b118", "type": "exact", "fed": [181, 224], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b119", "type": "paraphrase", "fed": [181], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b120", "type": "exact", "fed": [183, 181, 182], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b121", "type": "exact", "fed": [185], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b122", "type": "exact", "fed": [185, 186], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b123", "type": "exact", "fed": [185, 225], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b124", "type": "paraphrase", "fed": [185], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b125", "type": "exact", "fed": [187, 185, 186], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b126", "type": "exact", "fed": [189], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b127", "type": "exact", "fed": [189], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b128", "type": "exact", "fed": [189, 226], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b129", "type": "paraphrase", "fed": [189], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b130", "type": "exact", "fed": [191, 189], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b131", "type": "exact", "fed": [193], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b132", "type": "exact", "fed": [193], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b133", "type": "exact", "fed": [193, 227], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b134", "type": "paraphrase", "fed": [], "hit3": 0, "top1": 0, "doc_dupes": 0}
+{"id": "b135", "type": "exact", "fed": [195, 193], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b136", "type": "exact", "fed": [197], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b137", "type": "exact", "fed": [197], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b138", "type": "exact", "fed": [197, 228], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b139", "type": "paraphrase", "fed": [197], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b140", "type": "exact", "fed": [199, 197, 198], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b141", "type": "exact", "fed": [89, 93], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b142", "type": "exact", "fed": [93, 97], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b143", "type": "exact", "fed": [105, 101], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b144", "type": "exact", "fed": [109, 113], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b145", "type": "exact", "fed": [125], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b146", "type": "exact", "fed": [173, 177], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b147", "type": "exact", "fed": [185, 189], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b148", "type": "exact", "fed": [193], "hit3": 1, "top1": 1, "doc_dupes": 0}
+{"id": "b149", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b150", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b151", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b152", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b153", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b154", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b155", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b156", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b157", "type": "no_answer_near", "fed": [137], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b158", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b159", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b160", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b161", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b162", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b163", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b164", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b165", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b166", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b167", "type": "no_answer_near", "fed": [197], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b168", "type": "no_answer_near", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b169", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b170", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b171", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b172", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b173", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b174", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b175", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b176", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b177", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b178", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b179", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b180", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b181", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b182", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}
+{"id": "b183", "type": "no_answer_far", "fed": [], "hit3": 0, "top1": null, "doc_dupes": 0}

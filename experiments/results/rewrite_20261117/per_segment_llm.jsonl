@@ -1,0 +1,20 @@
+{"id": "m01", "mode": "llm", "turn1_hit": 1, "query": "那它的最大注射量呢？", "rewritten": "zx-1200的最大注射量呢？", "changed": true, "hit3": 1, "top1": 1, "scores": [0.6154, 0.5688, 0.5525]}
+{"id": "m02", "mode": "llm", "turn1_hit": 1, "query": "合模机构间隙检测多久一次？", "rewritten": "合模机构间隙检测多久一次？", "changed": false, "hit3": 0, "top1": 0, "scores": [0.6003, 0.5873, 0.5856]}
+{"id": "m03", "mode": "llm", "turn1_hit": 1, "query": "那它的额定排气量呢？", "rewritten": "ga-55的额定排气量呢？", "changed": true, "hit3": 1, "top1": 1, "scores": [0.6559, 0.6175, 0.6067]}
+{"id": "m04", "mode": "llm", "turn1_hit": 1, "query": "润滑油与油过滤器多久一次？", "rewritten": "润滑油与油过滤器多久一次？", "changed": false, "hit3": 0, "top1": 0, "scores": [0.7276, 0.6901, 0.661]}
+{"id": "m05", "mode": "llm", "turn1_hit": 1, "query": "那它的泵功率呢？", "rewritten": "mt-120的泵功率呢？", "changed": true, "hit3": 1, "top1": 1, "scores": [0.6431, 0.6073, 0.5521]}
+{"id": "m06", "mode": "llm", "turn1_hit": 1, "query": "那它的送风量呢？", "rewritten": "cd-300的送风量呢？", "changed": true, "hit3": 1, "top1": 1, "scores": [0.645, 0.56, 0.5598]}
+{"id": "m07", "mode": "llm", "turn1_hit": 1, "query": "水过滤器清洗多久一次？", "rewritten": "cw-45 水过滤器清洗多久一次？", "changed": true, "hit3": 1, "top1": 0, "scores": [0.7155, 0.6784, 0.6632]}
+{"id": "m08", "mode": "llm", "turn1_hit": 1, "query": "那它的重复定位精度呢？", "rewritten": "rb-800的重复定位精度呢？", "changed": true, "hit3": 1, "top1": 1, "scores": [0.5739, 0.5458, 0.5324]}
+{"id": "m09", "mode": "llm", "turn1_hit": 1, "query": "轴承润滑多久一次？", "rewritten": "pc-400 轴承润滑多久一次？", "changed": true, "hit3": 1, "top1": 0, "scores": [0.6497, 0.6138, 0.5681]}
+{"id": "m10", "mode": "llm", "turn1_hit": 1, "query": "那它的油箱容积呢？", "rewritten": "df-500的油箱容积呢？", "changed": true, "hit3": 1, "top1": 1, "scores": [0.61, 0.604, 0.5644]}
+{"id": "m11", "mode": "llm", "turn1_hit": 1, "query": "放电测试多久一次？", "rewritten": "ups-60k 放电测试多久一次？", "changed": true, "hit3": 1, "top1": 0, "scores": [0.7267, 0.6966, 0.657]}
+{"id": "m12", "mode": "llm", "turn1_hit": 1, "query": "那它的出水温度呢？", "rewritten": "ct-200的出水温度呢？", "changed": true, "hit3": 1, "top1": 1, "scores": [0.7076, 0.6469, 0.6316]}
+{"id": "m13", "mode": "llm", "turn1_hit": 1, "query": "膜化学清洗多久一次？", "rewritten": "ro-10 膜化学清洗多久一次？", "changed": true, "hit3": 1, "top1": 0, "scores": [0.7107, 0.6777, 0.6768]}
+{"id": "m14", "mode": "llm", "turn1_hit": 1, "query": "那它的出水标准呢？", "rewritten": "ws-50的出水标准呢？", "changed": true, "hit3": 1, "top1": 0, "scores": [0.6734, 0.6337, 0.6255]}
+{"id": "m15", "mode": "llm", "turn1_hit": 1, "query": "脉冲阀膜片更换多久一次？", "rewritten": "dc-3000 脉冲阀膜片更换多久一次？", "changed": true, "hit3": 1, "top1": 0, "scores": [0.7124, 0.6743, 0.6429]}
+{"id": "m16", "mode": "llm", "turn1_hit": 1, "query": "那它的环境温度呢？", "rewritten": "cmm-700的环境温度呢？", "changed": true, "hit3": 1, "top1": 1, "scores": [0.6467, 0.6138, 0.5637]}
+{"id": "m17", "mode": "llm", "turn1_hit": 1, "query": "驱动轮检查多久一次？", "rewritten": "agv-500 驱动轮检查多久一次？", "changed": true, "hit3": 1, "top1": 0, "scores": [0.7175, 0.6959, 0.6629]}
+{"id": "m18", "mode": "llm", "turn1_hit": 1, "query": "那它的堆垛机速度呢？", "rewritten": "asrs-8的堆垛机速度呢？", "changed": true, "hit3": 1, "top1": 1, "scores": [0.7276, 0.6457, 0.5737]}
+{"id": "m19", "mode": "llm", "turn1_hit": 1, "query": "绝缘电阻测试多久一次？", "rewritten": "scb13-1600 绝缘电阻测试多久一次？", "changed": true, "hit3": 1, "top1": 0, "scores": [0.6668, 0.6227, 0.5941]}
+{"id": "m20", "mode": "llm", "turn1_hit": 1, "query": "那它的全压呢？", "rewritten": "fj-90的全压呢？", "changed": true, "hit3": 1, "top1": 1, "scores": [0.6114, 0.5682, 0.5658]}

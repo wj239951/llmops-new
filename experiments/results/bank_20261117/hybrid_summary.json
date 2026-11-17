@@ -1,0 +1,75 @@
+{
+  "generated_at": "2026-11-17T14:46:07",
+  "settings": {
+    "candidate_k": 6,
+    "feed_topk": 3,
+    "cosine_threshold": 0.53,
+    "rerank_threshold": 0.76,
+    "rerank_model": "D:\\models\\bge-reranker-v2-m3",
+    "hybrid_dense_k": 12,
+    "hybrid_sparse_k": 12,
+    "hybrid_rrf_k": 60
+  },
+  "datasets": [
+    {
+      "name": "eval_bank",
+      "path": "experiments/eval_bank.jsonl",
+      "questions": 183
+    }
+  ],
+  "modes": [
+    "dense",
+    "hybrid"
+  ],
+  "skipped_modes": [],
+  "results": [
+    {
+      "questions": 183,
+      "answerable": 148,
+      "no_answer": 35,
+      "recall_at_k": 100.0,
+      "mrr": 0.8992,
+      "coverage": 100.0,
+      "hit_at_feed": 98.64864864864865,
+      "top1_accuracy": 81.75675675675676,
+      "false_accept_far": 53.333333333333336,
+      "false_accept_near": 100.0,
+      "false_accept_all": 80.0,
+      "mean_latency_ms": 43.1,
+      "p95_latency_ms": 49.4,
+      "mean_rerank_ms": null,
+      "dataset": "eval_bank",
+      "dataset_path": "experiments/eval_bank.jsonl",
+      "mode": "dense",
+      "candidate_k": 6,
+      "feed_topk": 3,
+      "threshold": 0.53
+    },
+    {
+      "questions": 183,
+      "answerable": 148,
+      "no_answer": 35,
+      "recall_at_k": 100.0,
+      "mrr": 0.9006,
+      "coverage": 100.0,
+      "hit_at_feed": 98.64864864864865,
+      "top1_accuracy": 81.75675675675676,
+      "false_accept_far": 53.333333333333336,
+      "false_accept_near": 100.0,
+      "false_accept_all": 80.0,
+      "mean_latency_ms": 53.6,
+      "p95_latency_ms": 84.1,
+      "mean_rerank_ms": null,
+      "dataset": "eval_bank",
+      "dataset_path": "experiments/eval_bank.jsonl",
+      "mode": "hybrid",
+      "candidate_k": 6,
+      "feed_topk": 3,
+      "threshold": 0.53
+    }
+  ],
+  "notes": [
+    "dense/hybrid 模式使用 cosine 阈值，rerank 模式使用精排阈值；两者分数尺度不同。",
+    "hybrid 模式即为「jieba/BM25 关键词召回 + 向量召回 RRF 融合」，与线上 RAG_HYBRID_ENABLED 开关配套。"
+  ]
+}
