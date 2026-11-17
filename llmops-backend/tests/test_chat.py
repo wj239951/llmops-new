@@ -1,5 +1,6 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """聊天接口回归测试（鉴权 + RAG 三态），LLM/RAG 全 mock，不碰 Ollama/Chroma/MySQL。"""
+from app.core.config import settings
 from app.services.llm_service import LLMService
 from app.services.rag_service import RAGService, RetrievedChunk
 
@@ -26,8 +27,12 @@ def test_chat_rejects_wrong_auth(client):
     assert r.status_code == 401
 
 
-def test_chat_no_hit(client, auth_headers, monkeypatch):
-    monkeypatch.setattr(LLMService, "chat", lambda self, **kw: FAKE_RESULT)
+def test_chat_no_hit_returns_canned_reply(client, auth_headers, monkeypatch):
+    """无命中时不再调用模型，直接回固定话术（docs/17）。"""
+    def _boom(*a, **kw):
+        raise AssertionError("no_hit 不应调用模型")
+
+    monkeypatch.setattr(LLMService, "chat", _boom)
     monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None, timing=None: [])
 
     r = client.post(
@@ -37,9 +42,26 @@ def test_chat_no_hit(client, auth_headers, monkeypatch):
     )
     assert r.status_code == 200
     body = r.json()
-    assert body["answer"] == "测试回答"
+    assert body["answer"] == settings.RAG_NO_HIT_REPLY_TEXT
     assert body["rag_status"] == "no_hit"
     assert body["sources"] == []
+    assert body["total_tokens"] == 0
+
+
+def test_chat_no_hit_falls_back_to_model_when_canned_disabled(client, auth_headers, monkeypatch):
+    """关掉固定话术后回到旧行为：把原问题交给模型。"""
+    monkeypatch.setattr(settings, "RAG_NO_HIT_REPLY_ENABLED", False)
+    monkeypatch.setattr(LLMService, "chat", lambda self, **kw: FAKE_RESULT)
+    monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None, timing=None: [])
+
+    r = client.post(
+        "/api/chat",
+        json={"query": "今天中午吃什么", "use_rag": True},
+        headers=auth_headers,
+    )
+    body = r.json()
+    assert body["answer"] == "测试回答"
+    assert body["rag_status"] == "no_hit"
 
 
 def test_chat_hit(client, auth_headers, monkeypatch):

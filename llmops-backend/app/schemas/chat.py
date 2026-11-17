@@ -14,6 +14,10 @@ class ChatRequest(BaseModel):
     use_rerank: bool | None = None
     # None=跟随服务端配置；True/False=本次请求强制开启/关闭输入清洗
     use_clean: bool | None = None
+    # None/False=按服务端 INPUT_CLEAN_MODE 选通道；True=本次请求升级到模型通道（精细清洗）。
+    # 只升级通道、不负责开启清洗：use_clean=false 时它无效，服务端默认 off 时仍需 use_clean=true。
+    # 服务端 INPUT_CLEAN_MODEL_ALLOWED=false 时会被忽略并退回规则清洗，不会报错。
+    use_clean_model: bool | None = None
     ##
     conversation_id: str | None = None# 聊天会话 ID
     memory_enabled: bool = False# 是否启用内存
@@ -44,6 +48,8 @@ class ChatResponse(BaseModel):
     # 输入清洗结果：{mode, applied, changed, fallback, reason, ms, clean_query?}
     # 用户原文仍按 query 存库，clean_query 只在真的改动了内容时返回，便于前端展示差异
     clean: dict | None = None
+    # 数字级 grounding 校验：{ok, numbers, missing}；missing 非空时会追加提示（docs/19）
+    grounding: dict | None = None
     # 阶段耗时（ms）：prepare / retrieve / rerank / llm / first_token / total
     timings: dict | None = None
     ##

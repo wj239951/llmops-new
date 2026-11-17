@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """RAG search 回归测试（mock 向量库 + SQLite 文档，不碰真实 Chroma/Ollama）。"""
 from unittest.mock import MagicMock
 
@@ -91,6 +91,8 @@ def test_search_keeps_candidate_beyond_feed_topk_when_earlier_ones_are_filtered(
     新行为：取 6 条候选 → 过滤后剩 3 条
     """
     ids = _seed_docs(db_session, 6)
+    # 本用例的 0.54 / 0.56 锚在 0.53 刻度上，固定阈值以免默认值调整后失真
+    monkeypatch.setattr(settings, "RAG_SCORE_THRESHOLD", 0.53)
     hits = [
         _make_hit(ids[0], "正文0", 0.30),  # cos 0.70 过
         _make_hit(ids[1], "正文1", 0.50),  # cos 0.50 不过
@@ -130,3 +132,33 @@ def test_search_caps_result_at_feed_topk(db_session, monkeypatch):
     )
     out = RAGService().search(db_session, "查询")
     assert len(out) == settings.RAG_FEED_TOPK
+
+def _hit(doc_id, chunk, content, distance):
+    doc = MagicMock()
+    doc.metadata = {"id": doc_id, "title": "t", "chunk": chunk}
+    doc.page_content = content
+    return doc, distance
+
+
+def test_feed_truncation_is_document_diverse(db_session, monkeypatch):
+    """同一篇文档的两个片段都过闸时，只保留更相关的那个，把名额让给别的文档。"""
+    d1 = KnowledgeDocument(title="手册A", content="正文")
+    d2 = KnowledgeDocument(title="手册B", content="正文")
+    db_session.add_all([d1, d2])
+    db_session.commit()
+
+    hits = [
+        _hit(d1.id, 0, "A 的第 0 片", 0.30),   # cos 0.70
+        _hit(d1.id, 1, "A 的第 1 片", 0.35),   # cos 0.65 —— 同文档，应被去重
+        _hit(d2.id, 0, "B 的第 0 片", 0.40),   # cos 0.60
+    ]
+    monkeypatch.setattr(rag_service.vectorstore, "similarity_search_with_score",
+                        MagicMock(return_value=hits))
+
+    out = RAGService().search(db_session, "查询")
+    assert [c.title for c in out] == ["手册A", "手册B"]
+    assert out[0].chunk == 0          # 保留的是同文档里分更高的片段
+
+    monkeypatch.setattr(settings, "RAG_DEDUP_BY_DOC", False)
+    out2 = RAGService().search(db_session, "查询")
+    assert len(out2) == 3 and [c.title for c in out2] == ["手册A", "手册A", "手册B"]

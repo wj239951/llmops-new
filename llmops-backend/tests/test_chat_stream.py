@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """流式聊天测试：SSE 事件顺序、RAG 元数据、错误兜底与日志落库，LLM/RAG 全 mock。"""
 import json
 
@@ -56,6 +56,8 @@ def test_stream_requires_auth(client):
 
 
 def test_stream_event_order_and_meta(client, auth_headers, monkeypatch):
+    # 本用例验证的是「有模型流」时的 SSE 顺序，关掉无命中固定话术走旧路径
+    monkeypatch.setattr(settings, "RAG_NO_HIT_REPLY_ENABLED", False)
     monkeypatch.setattr(LLMService, "chat_stream", _fake_stream)
     monkeypatch.setattr(RAGService, "search", lambda self, db, query, use_rerank=None, timing=None: [])
 

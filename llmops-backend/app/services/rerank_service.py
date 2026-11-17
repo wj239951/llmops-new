@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from dataclasses import replace
 
 import requests
@@ -196,24 +197,36 @@ class ApiReranker:
         if not self.load():
             raise RerankerUnavailableError(self._load_error or "reranker 未加载")
         url = settings.RAG_RERANK_API_BASE_URL.rstrip("/") + "/rerank"
-        try:
-            resp = requests.post(
-                url,
-                json={
-                    "model": settings.RAG_RERANK_API_MODEL,
-                    "query": query,
-                    "documents": passages,
-                    "top_n": len(passages),
-                    "return_documents": False,
-                },
-                headers={"Authorization": f"Bearer {self._api_key()}"},
-                timeout=settings.RAG_RERANK_API_TIMEOUT,
-            )
-            resp.raise_for_status()
-            results = resp.json()["results"]
-        except Exception as exc:
-            # 网络抖动 / 限流 / 服务商故障：上抛让调用方回退 cosine，不让服务不可用
-            raise RerankerUnavailableError(f"云端精排请求失败：{exc}") from exc
+        payload = {
+            "model": settings.RAG_RERANK_API_MODEL,
+            "query": query,
+            "documents": passages,
+            "top_n": len(passages),
+            "return_documents": False,
+        }
+        results = None
+        # 2026-11-17 实测：硅基流动偶发 SSL EOF（连接被对端掐断），单次失败会让整轮静默回退 cosine。
+        # 网络类错误重试一次（4xx 是配置/鉴权问题，重试没意义）。
+        for attempt in range(2):
+            try:
+                resp = requests.post(
+                    url,
+                    json=payload,
+                    headers={"Authorization": f"Bearer {self._api_key()}"},
+                    timeout=settings.RAG_RERANK_API_TIMEOUT,
+                )
+                resp.raise_for_status()
+                results = resp.json()["results"]
+                break
+            except Exception as exc:
+                status = getattr(getattr(exc, "response", None), "status_code", None)
+                retryable = attempt == 0 and not (status and 400 <= status < 500)
+                if retryable:
+                    logger.warning("云端精排请求失败，重试一次：%s", exc)
+                    time.sleep(0.4)
+                    continue
+                # 网络抖动 / 限流 / 服务商故障：上抛让调用方回退 cosine，不让服务不可用
+                raise RerankerUnavailableError(f"云端精排请求失败：{exc}") from exc
         scores = [0.0] * len(passages)
         for item in results:
             scores[int(item["index"])] = float(item["relevance_score"])

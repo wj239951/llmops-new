@@ -217,7 +217,7 @@ class RAGService:
                     passed = self._rerank_passed(db, query, chunks, candidate_k)
                     if timing is not None:
                         timing["rerank_ms"] = int((time.perf_counter() - t_rerank) * 1000)
-                    return passed[:feed_topk]
+                    return self._cut(passed, feed_topk)
                 except Exception as exc:  # pragma: no cover - 运行时保护
                     logger.warning("RAG rerank 调用失败，回退 cosine 检索：%s", exc)
             if timing is not None:
@@ -233,7 +233,28 @@ class RAGService:
             if c.score >= settings.RAG_SCORE_THRESHOLD or (bypass and c.match == "exact")
         ]
         passed.sort(key=lambda c: (c.match == "exact", c.score), reverse=True)
-        return passed[:feed_topk]
+        return self._cut(passed, feed_topk)
+
+    def _cut(self, chunks, feed_topk: int):
+        """截断到 feed_topk；默认先按文档去重，同一篇文档只留最相关的一个片段。
+
+        纯片段级截断的问题是：一篇 2–3 个片段的长文档能占满整个上下文（docs/13 实测
+        「GA-75」「动火」「成品仓库」都出现过），多文档对比题会只剩一份材料。
+        传入的 chunks 必须已按相关度排好序。
+        """
+        if not settings.RAG_DEDUP_BY_DOC:
+            return chunks[:feed_topk]
+        seen = set()
+        out = []
+        for c in chunks:
+            key = c.doc_id if c.doc_id is not None else ("no-id", c.title, c.chunk)
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(c)
+            if len(out) >= feed_topk:
+                break
+        return out
 
     def _retrieve_candidates(self, db, query: str, candidate_k: int) -> list[RetrievedChunk] | None:
         """候选池：开混合走 RRF 融合，否则纯向量；都失败返回 None 由调用方降级。"""
@@ -277,7 +298,7 @@ class RAGService:
         if timing is not None:
             timing["retrieve_ms"] = int((time.perf_counter() - started) * 1000)
         ordered = sorted(best.values(), key=lambda c: (c.match == "exact", c.score), reverse=True)
-        return ordered[:feed_topk]
+        return self._cut(ordered, feed_topk)
 
     def _rerank_passed(self, db, query: str, chunks, candidate_k: int) -> list[RetrievedChunk]:
         """精排过闸：复合问句按主题子问句各自过闸后合并去重，单主题走原路。"""
