@@ -59,6 +59,12 @@ Token统计
               服务端清洗：{{ cleanModeText }}
             </span>
            </el-form-item>
+           <el-form-item v-if="showModelCleanSwitch" label="精细清洗">
+            <el-switch v-model="form.use_clean_model" :disabled="!form.use_clean" />
+            <span class="rerank-hint">
+              模型通道较慢（GPU 约 0.5s），失败或服务端未允许时自动回退规则清洗
+            </span>
+           </el-form-item>
             <el-form-item label="会话历史">
               <el-select v-model="form.conversation_id" clearable style="width: 300px" @change="switchConversation">
                 <el-option
@@ -149,8 +155,8 @@ style="margin-top: 10px"
                   style="margin-top: 8px"
                 />
                 <el-alert
-                  v-else-if="cleanInfo && cleanInfo.fallback"
-                  title="输入清洗：模型通道不可用，已回退规则清洗"
+                  v-if="cleanInfo && cleanInfo.fallback"
+                  :title="cleanFallbackText"
                   type="warning"
                   :closable="false"
                   style="margin-top: 8px"
@@ -229,11 +235,26 @@ const serverRerankEnabled = ref(false)
 const serverRerankModel = ref('')
 // 输入清洗：服务端默认模式 + 本次请求的清洗结果
 const serverCleanMode = ref('off')
+// 服务端是否允许请求级「精细清洗」（INPUT_CLEAN_MODEL_ALLOWED）；false 时按钮不显示
+const serverCleanModelAllowed = ref(false)
 const cleanInfo = ref<CleanInfo | null>(null)
 const cleanModeText = computed(() => {
   if (serverCleanMode.value === 'model') return '模型（失败回退规则）'
   if (serverCleanMode.value === 'rule') return '规则清洗'
   return '未启用（可在 .env 里开 INPUT_CLEAN_MODE）'
+})
+// 默认通道本身已经是模型时，再给一个「精细清洗」开关没有意义
+const showModelCleanSwitch = computed(
+  () => serverCleanModelAllowed.value && serverCleanMode.value !== 'model'
+)
+// 回退提示要区分「服务端不允许」与「模型通道挂了」，两者用户的处理动作不同
+const cleanFallbackText = computed(() => {
+  const info = cleanInfo.value
+  if (!info) return ''
+  const tail = info.fallback === 'rule' ? '已回退规则清洗' : '本次未清洗'
+  return info.fallback_reason === 'not_allowed'
+    ? `输入清洗：服务端未允许精细清洗（${tail}）`
+    : `输入清洗：模型通道不可用（${tail}）`
 })
 // 本次请求的实际打分信息（来自 meta / done / 非流式响应）
 const scoreMode = ref('')
@@ -259,6 +280,7 @@ const form = reactive({
   use_rag: true,
   use_rerank: false,
   use_clean: false,
+  use_clean_model: false,
   memory_enabled: true,
   conversation_id: ''
 })
@@ -324,11 +346,13 @@ async function loadChatOptions() {
     serverRerankModel.value = opts.rerank_model
     form.use_rerank = opts.rerank_enabled
     serverCleanMode.value = opts.clean_mode ?? 'off'
+    serverCleanModelAllowed.value = opts.clean_model_allowed ?? false
     form.use_clean = Boolean(opts.clean_enabled)
   } catch {
     // 可选接口失败不影响聊天；开关保持关闭并显示不可用
     serverRerankEnabled.value = false
     serverCleanMode.value = 'off'
+    serverCleanModelAllowed.value = false
   }
 }
 async function newConversation() {
@@ -400,6 +424,8 @@ async function submit() {
     use_rerank: form.use_rag ? form.use_rerank : null,
     // 清洗与 RAG 无关，任何时候都按开关显式下发（false 表示本次不要清洗）
     use_clean: form.use_clean,
+    // 清洗关掉时通道开关无意义，显式传 false，避免服务端要做一次「被忽略」的判断
+    use_clean_model: form.use_clean && form.use_clean_model,
   }
   controller.value = ctrl
 

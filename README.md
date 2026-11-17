@@ -72,7 +72,7 @@
 - **对话**：本地 Ollama（deepseek-r1:7b）与 DeepSeek 云端双通道，可选 Prompt 模板、温度 / top_p、思考过程、Token 与耗时统计；**SSE 流式输出**（`reasoning` 分片 + RAG 阶段进度），流式失败自动降级非流式；**精排开关**可请求级强制开/关，并显示本次实际打分方式
 - **知识库**：手动录入、文件上传解析、增删改查，切块与向量同步，来源与命中分数回显
 - **RAG**：三级检索（余弦召回 + 可选 jieba/BM25 关键词召回 RRF 融合 + 可选 bge-reranker 精排）、阈值过滤、宽候选池、弱命中降级（`hit` / `weak_hit` / `no_hit` / `off` 四态）；支持请求级 `use_rerank` 覆盖服务端配置
-- **输入清洗**：粘贴进来的脏文本先规范化再检索——零宽字符、全角型号、重复字、HTML 残留、PDF 硬换行都会把 bge-m3 向量带偏。两条通道：`rule` 纯规则（毫秒级、零依赖）/ `model` 调蒸馏的 0.8B 清洗模型（可选，失败自动回退规则）；用户原文照常入库，只有检索与提问用清洗结果。见 [docs/08](docs/08.输入清洗接入报告.md)
+- **输入清洗**：粘贴进来的脏文本先规范化再检索——零宽字符、全角型号、重复字、HTML 残留、PDF 硬换行都会把 bge-m3 向量带偏。两条通道：`rule` 纯规则（毫秒级、零依赖，默认）/ `model` 调蒸馏的 0.8B 清洗模型（可选，失败自动回退规则）；**主链路走规则，前端「精细清洗」按钮可按请求临时升级到模型通道**（`INPUT_CLEAN_MODEL_ALLOWED` 可整体关掉）。用户原文照常入库，只有检索与提问用清洗结果。见 [docs/08](docs/08.输入清洗接入报告.md)
 - **会话记忆**：按 `conversation_id` 取最近 `MEMORY_MAX_TURNS` 轮成功对话，支持会话列表与历史消息
 - **调用日志**：分页查询，带 token、耗时、状态、错误信息
 
@@ -191,6 +191,7 @@ RAG_HYBRID_ENABLED=true
 | `RAG_HYBRID_ENABLED` / `RAG_HYBRID_DENSE_K` / `RAG_HYBRID_SPARSE_K` / `RAG_HYBRID_RRF_K` | 混合检索开关（默认 `false`）/ 向量候选 `12` / BM25 候选 `12` / RRF 常数 `60`；无额外依赖 |
 | `INPUT_CLEAN_MODE` / `INPUT_CLEAN_FALLBACK` | 输入清洗开关（`off` 默认 / `rule` 零依赖 / `model` 调独立清洗服务）/ 失败兜底 `rule`；请求级 `use_clean` 可临时覆盖 |
 | `INPUT_CLEAN_SERVER_URL` / `INPUT_CLEAN_TIMEOUT` / `INPUT_CLEAN_MAX_CHARS` | 清洗服务地址 `127.0.0.1:8010` / 超时 `5s` / 超长跳过阈值 `4000` |
+| `INPUT_CLEAN_MODEL_ALLOWED` | 是否允许请求级「精细清洗」（`use_clean_model=true` 时才升级到 `model` 通道；置 `false` 则按钮隐藏、该字段被忽略） |
 
 ## 目录结构
 

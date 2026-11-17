@@ -135,3 +135,110 @@ def test_options_exposes_clean_config(client, auth_headers, monkeypatch):
     monkeypatch.setattr(settings, "INPUT_CLEAN_MODE", "rule")
     body = client.get("/api/chat/options", headers=auth_headers).json()
     assert body["clean_mode"] == "rule" and body["clean_enabled"] is True
+
+
+# ── 请求级通道选择（use_clean_model）─────────────────────────────────────
+# 语义：主链路按 INPUT_CLEAN_MODE 走规则清洗；只有前端显式点「精细清洗」才升级到模型通道。
+def _stub_downstream(monkeypatch):
+    monkeypatch.setattr(LLMService, "chat", _fake_chat)
+    monkeypatch.setattr(RAGService, "search",
+                        lambda self, db, query, use_rerank=None, timing=None: [])
+
+
+def test_use_clean_model_upgrades_to_model_channel(client, auth_headers, monkeypatch):
+    """默认规则清洗时，请求里点「精细清洗」应当把本轮升级到模型通道。"""
+    monkeypatch.setattr(settings, "INPUT_CLEAN_MODE", "rule")
+    monkeypatch.setattr(settings, "INPUT_CLEAN_MODEL_ALLOWED", True)
+    _stub_downstream(monkeypatch)
+    seen = []
+
+    def _fake_model(text, url, timeout):
+        seen.append(text)
+        return "模型清洗结果"
+
+    monkeypatch.setattr(text_clean, "clean_model", _fake_model)
+
+    raw = "我我我 明天  去北京"
+    body = client.post("/api/chat", json={"query": raw, "use_clean_model": True},
+                       headers=auth_headers).json()
+
+    # 交给模型的是原文（由模型自己判断要不要改），不是先规则清洗过的文本
+    assert seen == [raw]
+    assert body["clean"]["mode"] == "model"
+    assert body["clean"]["requested_model"] is True
+    assert CAPTURED["query"] == "模型清洗结果"
+
+
+def test_use_clean_model_denied_falls_back_to_rule(client, auth_headers, monkeypatch):
+    """服务端关掉模型通道时，请求里的 true 不报错，退回规则清洗并标出原因。"""
+    monkeypatch.setattr(settings, "INPUT_CLEAN_MODE", "rule")
+    monkeypatch.setattr(settings, "INPUT_CLEAN_MODEL_ALLOWED", False)
+    _stub_downstream(monkeypatch)
+    monkeypatch.setattr(text_clean, "clean_model",
+                        lambda *a, **k: pytest.fail("模型通道不该被调用"))
+
+    body = client.post("/api/chat",
+                       json={"query": "我我我 明天  去北京", "use_clean_model": True},
+                       headers=auth_headers).json()
+
+    assert body["clean"]["mode"] == "rule"
+    assert body["clean"]["fallback"] == "rule"
+    assert body["clean"]["fallback_reason"] == "not_allowed"
+    assert CAPTURED["query"] == "我 明天 去北京"
+
+
+def test_use_clean_model_ignored_when_clean_disabled(client, auth_headers, monkeypatch):
+    """use_clean=false 是更强的「本次不要清洗」，通道开关不能把它翻回来。"""
+    monkeypatch.setattr(settings, "INPUT_CLEAN_MODE", "rule")
+    monkeypatch.setattr(settings, "INPUT_CLEAN_MODEL_ALLOWED", True)
+    _stub_downstream(monkeypatch)
+    monkeypatch.setattr(text_clean, "clean_model",
+                        lambda *a, **k: pytest.fail("清洗已关闭，不该调模型"))
+
+    raw = "我我我 明天  去北京"
+    body = client.post("/api/chat",
+                       json={"query": raw, "use_clean": False, "use_clean_model": True},
+                       headers=auth_headers).json()
+
+    assert body["clean"]["mode"] == "off"
+    assert body["clean"]["applied"] is False
+    assert CAPTURED["query"] == raw
+
+
+def test_use_clean_model_failure_records_error_reason(client, auth_headers, monkeypatch):
+    """模型通道报错时按 INPUT_CLEAN_FALLBACK 回退规则，并把原因标成 error。"""
+    monkeypatch.setattr(settings, "INPUT_CLEAN_MODE", "rule")
+    monkeypatch.setattr(settings, "INPUT_CLEAN_MODEL_ALLOWED", True)
+    _stub_downstream(monkeypatch)
+
+    def _boom(*a, **k):
+        raise RuntimeError("clean server down")
+
+    monkeypatch.setattr(text_clean, "clean_model", _boom)
+
+    body = client.post("/api/chat",
+                       json={"query": "我我我 明天  去北京", "use_clean_model": True},
+                       headers=auth_headers).json()
+
+    assert body["clean"]["mode"] == "model"          # 请求的是模型通道
+    assert body["clean"]["fallback"] == "rule"        # 实际退回规则
+    assert body["clean"]["fallback_reason"] == "error"
+    assert body["clean"]["reason"] == "error"
+    assert CAPTURED["query"] == "我 明天 去北京"
+
+
+def test_clean_note_mentions_denied_channel():
+    """工作流说明要能区分「模型失败」与「服务端不允许」。"""
+    denied = {"mode": "rule", "applied": True, "changed": True, "ms": 1,
+              "fallback": "rule", "fallback_reason": "not_allowed"}
+    failed = {"mode": "model", "applied": True, "changed": True, "ms": 9,
+              "fallback": "rule", "fallback_reason": "error"}
+    assert "未允许模型通道" in ChatService._clean_note(denied)
+    assert "模型通道失败" in ChatService._clean_note(failed)
+
+
+def test_options_exposes_clean_model_allowed(client, auth_headers, monkeypatch):
+    monkeypatch.setattr(settings, "INPUT_CLEAN_MODE", "rule")
+    monkeypatch.setattr(settings, "INPUT_CLEAN_MODEL_ALLOWED", False)
+    body = client.get("/api/chat/options", headers=auth_headers).json()
+    assert body["clean_model_allowed"] is False

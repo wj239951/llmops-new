@@ -40,6 +40,8 @@ def chat_options():
         "clean_mode": settings.INPUT_CLEAN_MODE,
         "clean_enabled": settings.INPUT_CLEAN_MODE in ("rule", "model"),
         "clean_fallback": settings.INPUT_CLEAN_FALLBACK,
+        # 请求级「精细清洗」是否被允许：false 时前端不显示该按钮，请求里的 true 会被忽略
+        "clean_model_allowed": bool(settings.INPUT_CLEAN_MODEL_ALLOWED),
     }
 
 

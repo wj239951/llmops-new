@@ -66,6 +66,8 @@ export interface ChatRequestPayload {
   use_rerank?: boolean | null
   /** 输入清洗开关：null/省略=跟随服务端配置，true/false=本次请求强制开/关 */
   use_clean?: boolean | null
+  /** 精细清洗：true=本次请求把清洗升级到模型通道（服务端不允许时自动退回规则） */
+  use_clean_model?: boolean | null
   conversation_id?: string | null
   memory_enabled?: boolean
 }
@@ -78,9 +80,13 @@ export interface CleanInfo {
   changed: boolean
   /** 模型通道失败时的兜底通道：rule / off */
   fallback?: string | null
+  /** 为什么回退：error=模型通道失败；not_allowed=服务端未允许请求级模型通道 */
+  fallback_reason?: string | null
   /** off / empty / too_long / error / already_clean / empty_after_clean */
   reason?: string | null
   ms?: number
+  /** 本次请求是否申请了模型通道（前端用它区分「我点了」与「服务端真跑了」） */
+  requested_model?: boolean
   /** 清洗后的文本（仅当内容真的变了才下发，最多 200 字） */
   clean_query?: string
 }
@@ -169,6 +175,8 @@ export interface ChatOptions {
   clean_enabled: boolean
   /** 模型通道失败时的兜底通道 */
   clean_fallback: string
+  /** 服务端是否允许请求级「精细清洗」（false 时按钮隐藏） */
+  clean_model_allowed?: boolean
 }
 
 /** 会话（对应 Conversation） */

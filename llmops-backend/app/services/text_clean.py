@@ -327,6 +327,7 @@ class InputCleaner:
             "applied": False,
             "changed": False,
             "fallback": None,
+            "fallback_reason": None,
             "reason": None,
             "ms": 0,
         }
@@ -350,6 +351,7 @@ class InputCleaner:
         except Exception as exc:  # noqa: BLE001 - 任何失败都不该打断问答
             logger.warning("输入清洗失败（mode=%s），按 %s 回退：%s", self.mode, self.fallback, exc)
             meta["fallback"] = "rule" if self.fallback == "rule" else "off"
+            meta["fallback_reason"] = "error"
             if self.fallback == "rule":
                 try:
                     cleaned = clean_rule(query)
