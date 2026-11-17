@@ -27,11 +27,22 @@ def _now() -> str:
 
 
 def cmd_check(args) -> int:
-    for name in golden.SETS:
+    for name in list(golden.SETS) + list(golden.EXTRA_SETS):
         questions = golden.load_set(name)
         s = golden.stats(questions)
-        print(f"[OK] {name}: {s['total']} 题（可答 {s['answerable']} / 无答案 {s['no_answer']}）{s['by_type']}")
+        kind = "检索" if name in golden.SETS else "生成"
+        print(
+            f"[OK] {name:6s}（{kind}）: {s['total']} 题"
+            f"（可答 {s['answerable']} / 无答案 {s['no_answer']}）{s['by_type']}"
+        )
     return 0
+
+
+def cmd_e2e(args) -> int:
+    """端到端拒答评测：真实检索 + 生成，判答对/拒答/引用（docs/18）。"""
+    from eval import e2e as e2e_mod
+
+    return e2e_mod.main(limit=args.limit, out=args.out)
 
 
 def cmd_run(args) -> int:
@@ -170,6 +181,11 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--max-hit-drop", type=float, default=2.0)
     g.add_argument("--max-fa-rise", type=float, default=5.0)
     g.set_defaults(func=cmd_gate)
+
+    e = sub.add_parser("e2e", help="端到端拒答评测（真实生成，需要 Ollama + 精排）")
+    e.add_argument("--limit", type=int, default=0, help="只跑前 N 题（0 = 全部）")
+    e.add_argument("--out", default=None, help="产物目录，默认 eval_results/e2e/<时间戳>")
+    e.set_defaults(func=cmd_e2e)
     return p
 
 

@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """RAG search 回归测试（mock 向量库 + SQLite 文档，不碰真实 Chroma/Ollama）。"""
 from unittest.mock import MagicMock
 

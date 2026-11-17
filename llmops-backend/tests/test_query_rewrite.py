@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """多轮检索查询改写（app/services/query_rewrite.py）单元测试。"""
 from app.core.config import settings
 from app.services import query_rewrite

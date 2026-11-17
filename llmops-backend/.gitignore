@@ -29,3 +29,4 @@ jieba.cache
 # 评测产物：只保留用于回归门禁的基线，其余时间戳目录不入库
 eval_results/*
 !eval_results/baseline/
+!eval_results/baseline_bank/

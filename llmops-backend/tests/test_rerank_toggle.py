@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """精排请求级开关（ChatRequest.use_rerank）测试。"""
 from app.core.config import settings
 from app.services.rag_service import RAGService

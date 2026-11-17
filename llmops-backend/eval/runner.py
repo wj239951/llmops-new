@@ -27,20 +27,24 @@ def _candidates(rag: RAGService, db, query: str, cfg: dict) -> list:
     return rag._dense_chunks(db, query, settings.RAG_CANDIDATE_K)
 
 
-def _finalize(cands: list, cfg: dict, query: str) -> list:
-    """按当前模式的阈值与截断规则，得到最终喂给模型的片段。"""
+def _finalize(rag: RAGService, cands: list, cfg: dict, query: str) -> list:
+    """按当前模式的阈值与截断规则，得到最终喂给模型的片段。
+
+    截断统一走 rag._cut()：与生产 search() 一致（含「同一文档只留一个片段」的去重）。
+    """
     feed_topk = settings.RAG_FEED_TOPK
     if cfg["rerank"]:
         from app.services import rerank_service
         rescored = rerank_service.rerank_chunks(query, cands)
-        return [c for c in rescored if c.score >= settings.RAG_RERANK_SCORE_THRESHOLD][:feed_topk]
+        passed = [c for c in rescored if c.score >= settings.RAG_RERANK_SCORE_THRESHOLD]
+        return rag._cut(passed, feed_topk)
     passed = [
         c for c in cands
         if c.score >= settings.RAG_SCORE_THRESHOLD
         or (settings.RAG_HYBRID_EXACT_BYPASS and getattr(c, "match", "vector") == "exact")
     ]
     passed.sort(key=lambda c: (getattr(c, "match", "vector") == "exact", c.score), reverse=True)
-    return passed[:feed_topk]
+    return rag._cut(passed, feed_topk)
 
 
 def run_mode(mode: str, questions: list[dict], db) -> tuple[list[dict], dict]:
@@ -64,7 +68,7 @@ def run_mode(mode: str, questions: list[dict], db) -> tuple[list[dict], dict]:
         cand_ms = int((time.time() - t0) * 1000)
 
         t1 = time.time()
-        final = _finalize(cands, cfg, q["question"])
+        final = _finalize(rag, cands, cfg, q["question"])
         final_ms = int((time.time() - t1) * 1000)
         total_ms = int((time.time() - t0) * 1000)
 
@@ -100,6 +104,6 @@ def check_against_production(rag: RAGService, db, question: str, mode: str) -> b
     """一致性自检：评测得到的 final 与生产 search() 的返回是否一致（doc_id 序列）。"""
     cfg = MODES[mode]
     cands = _candidates(rag, db, question, cfg)
-    mine = [c.doc_id for c in _finalize(cands, cfg, question)]
+    mine = [c.doc_id for c in _finalize(rag, cands, cfg, question)]
     prod = [c.doc_id for c in rag.search(db, question, use_rerank=cfg["rerank"])]
     return mine == prod

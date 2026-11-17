@@ -15,10 +15,17 @@ SETS = {
     "qa": "qa.jsonl",        # 45 题主集：exact / paraphrase / no_answer_far / no_answer_near
     "hard": "hard.jsonl",    # 硬样本：精确型号/编号，向量召回易漏
     "token": "token.jsonl",  # 搜索框式短查询：只输型号/编号
+    "bank": "bank.jsonl",    # 183 题：196 篇 / 338 片段语料上的主集（docs/13）
+}
+
+# 需要真实生成才能评测的集子：只参与格式校验，不参与 run 的检索模式。
+# e2e 走 `python -m eval e2e`（生成 + 拒答/引用判定，docs/18）。
+EXTRA_SETS = {
+    "e2e": "e2e.jsonl",      # 30 题：可回答 10 / 近域 10 / 远域 5 / 常识诱导 5
 }
 
 REQUIRED_FIELDS = {"id", "question", "expected_doc_ids"}
-ANSWERABLE_TYPES = {"exact", "paraphrase", "exact_token", "token_query"}
+ANSWERABLE_TYPES = {"exact", "paraphrase", "exact_token", "token_query", "answerable"}
 
 
 class GoldenError(ValueError):
@@ -27,9 +34,14 @@ class GoldenError(ValueError):
 
 def load_set(name: str = "qa", path: Path | None = None) -> list[dict]:
     if path is None:
-        if name not in SETS:
-            raise GoldenError(f"未知评测集 {name}，可选：{', '.join(SETS)}")
-        path = GOLDEN_DIR / SETS[name]
+        if name in SETS:
+            path = GOLDEN_DIR / SETS[name]
+        elif name in EXTRA_SETS:
+            path = GOLDEN_DIR / EXTRA_SETS[name]
+        else:
+            raise GoldenError(
+                f"未知评测集 {name}，可选：{', '.join(list(SETS) + list(EXTRA_SETS))}"
+            )
     if not path.exists():
         raise GoldenError(f"评测集不存在：{path}")
 
