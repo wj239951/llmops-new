@@ -48,6 +48,14 @@
 
 ![检索评测可视化](docs/检索评测可视化.png)
 
+召回漏斗与语料分布：
+
+![语料与召回漏斗](docs/语料与召回漏斗.png)
+
+端到端 30 题（真实生成 + 引用溯源）：
+
+![端到端评测](docs/端到端评测.png)
+
 > 绘图脚本：[docs/draw_arch.py](docs/draw_arch.py)、[docs/draw_sequence.py](docs/draw_sequence.py)（matplotlib，改完直接重跑即可更新）
 
 > 绘图脚本：[docs/draw_arch.py](docs/draw_arch.py)（matplotlib，改完直接重跑即可更新）
