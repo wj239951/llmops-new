@@ -9,7 +9,7 @@ from app.models.conversation import Conversation
 from app.schemas.chat import ChatRequest
 from app.services.llm_service import LLMService
 from app.services.prompt_service import PromptService
-from app.services import grounding, query_rewrite
+from app.services import grounding, query_alias, query_rewrite
 from app.services.rag_service import RAGService
 from app.services.text_clean import InputCleaner
 from app.services.image_input import extract_image_text, merge_query, public_meta
@@ -250,7 +250,10 @@ class ChatService:
         # answer_text：给模型看的提问（只用清洗后的用户文本，保持聚焦）
         # query：拿去检索的文本（含图片识别结果——型号、编号这类实体往往只在图里）
         answer_text = ctx.get("clean_query") or req.query
-        query = ctx.get("final_query") or answer_text
+        # 领域同义词归一：口语「密闭车间/有限空间」→ 语料里的「受限空间」
+        query, alias_hits = query_alias.normalize_terms(ctx.get("final_query") or answer_text)
+        if alias_hits:
+            workflow_reasoning.append(f"步骤6-0：检索词归一（{'，'.join(alias_hits)}）。")
         if not req.use_rag:
             workflow_reasoning.append("步骤6：未启用 RAG，直接调用模型。")
             return
