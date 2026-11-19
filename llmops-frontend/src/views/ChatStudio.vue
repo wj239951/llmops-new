@@ -87,6 +87,23 @@ Token统计
            <el-form-item label="用户输入">
             <el-input v-model="form.query" type="textarea" :rows="5" />
            </el-form-item>
+           <el-form-item label="图片（可选）">
+            <div class="img-input">
+              <el-upload
+                :auto-upload="false"
+                :show-file-list="false"
+                accept="image/*"
+                :on-change="onImageChange"
+              >
+                <el-button>选择图片</el-button>
+              </el-upload>
+              <span v-if="imageName" class="img-name">{{ imageName }}</span>
+              <el-button v-if="imageBase64" link type="danger" @click="clearImage">移除</el-button>
+              <span v-if="imageInfo" class="img-hint">
+                已识别 {{ imageInfo.chars }} 字（{{ imageInfo.ms }} ms{{ imageInfo.truncated ? '，已截断' : '' }}）
+              </span>
+            </div>
+           </el-form-item>
           
         
            <el-button type="primary" :loading="loading" @click="submit">
@@ -216,7 +233,7 @@ style="margin-top: 10px"
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChatMessage, ChatRequestPayload, CleanInfo, Conversation, PhaseTimings, Prompt, RagStatus, Source } from '../types'
+import type { ChatMessage, ChatRequestPayload, CleanInfo, Conversation, ImageInfo, PhaseTimings, Prompt, RagStatus, Source } from '../types'
 import { getChatOptions, sendChat, sendChatStream } from '../api/chat'
 import { listPrompts } from '../api/prompt'
 import { listConversations, createConversation, getMessages, deleteConversation } from '../api/conversations'
@@ -272,6 +289,10 @@ const conversations = ref<Conversation[]>([])
 const messages = ref<ChatMessage[]>([])
 // 流式阶段提示（loading 时显示在发送/取消按钮下方）
 const streamPhase = ref('正在准备…')
+const imageBase64 = ref('')
+const imageName = ref('')
+const imageInfo = ref<ImageInfo | null>(null)
+
 const form = reactive({
   query: '请介绍一下你自己',
   prompt_id: undefined as number | undefined,
@@ -366,6 +387,7 @@ async function newConversation() {
   meta.value = ''
   sources.value = []
   ragStatus.value = 'off'
+  imageInfo.value = null
   scoreMode.value = ''
   timingsText.value = ''
   rerankRequested.value = false
@@ -426,6 +448,8 @@ async function submit() {
     use_clean: form.use_clean,
     // 清洗关掉时通道开关无意义，显式传 false，避免服务端要做一次「被忽略」的判断
     use_clean_model: form.use_clean && form.use_clean_model,
+    // 图片：base64 直接随请求发，服务端 OCR 后与 query 合并检索
+    image_base64: imageBase64.value || null,
   }
   controller.value = ctrl
 
@@ -450,6 +474,7 @@ async function submit() {
             meta.value = `${m.model_provider} / ${m.model_name}`
             applyScoreInfo(m)
             applyCleanInfo(m)
+            imageInfo.value = m.image ?? null
           },
           onReasoning(delta) {
             hasSubstantiveOutput = true
@@ -470,6 +495,7 @@ async function submit() {
             meta.value = `${d.model_provider} / ${d.model_name} / tokens=${d.total_tokens} / ${d.latency_ms}ms`
             applyScoreInfo(d)
             applyCleanInfo(d)
+            imageInfo.value = d.image ?? null
             timingsText.value = formatTimings(d.timings)
           },
           onError(message) {
@@ -529,6 +555,28 @@ async function submit() {
   }
 }
 
+function onImageChange(uploadFile: any) {
+  const file = uploadFile?.raw as File | undefined
+  if (!file) return
+  if (file.size > 8 * 1024 * 1024) {
+    ElMessage.error('图片不能超过 8MB')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    imageBase64.value = String(reader.result || '')
+    imageName.value = file.name
+    imageInfo.value = null
+  }
+  reader.readAsDataURL(file)
+}
+
+function clearImage() {
+  imageBase64.value = ''
+  imageName.value = ''
+  imageInfo.value = null
+}
+
 function cancel() {
   controller.value?.abort()
 }
@@ -536,6 +584,25 @@ onMounted(() => { loadPrompts(); loadConversations(); loadChatOptions() })
 </script>
 
 <style scoped>
+.img-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.img-name {
+  font-size: 13px;
+  color: #606266;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.img-hint {
+  font-size: 12px;
+  color: #909399;
+}
+
 .rerank-hint {
   margin-left: 10px;
   font-size: 12px;

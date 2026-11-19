@@ -147,6 +147,15 @@ class Settings(BaseSettings):
     SILICONFLOW_EMBEDDING_BASE_URL: str = "https://api.siliconflow.cn/v1"
     SILICONFLOW_EMBEDDING_MODEL: str = "BAAI/bge-m3"
     SILICONFLOW_API_KEY: str = ""
+    # ---- 图片输入：用户发图 -> OCR -> 与提问合并后检索（docs/22）----
+    IMAGE_INPUT_ENABLED: bool = True
+    # 单张图片上限（解码后字节），超过直接忽略，避免大图打爆内存
+    IMAGE_INPUT_MAX_BYTES: int = 8 * 1024 * 1024
+    # 提取文本上限，超出截断（检索上下文不需要整页）
+    IMAGE_INPUT_MAX_CHARS: int = 1500
+    # OCR 置信度过低的框直接丢弃
+    IMAGE_INPUT_MIN_SCORE: float = 0.5
+
     @property
     def SQLALCHEMY_DATABASE_URL(self) -> str:
         return (

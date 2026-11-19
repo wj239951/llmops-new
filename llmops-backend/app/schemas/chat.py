@@ -19,6 +19,8 @@ class ChatRequest(BaseModel):
     # 服务端 INPUT_CLEAN_MODEL_ALLOWED=false 时会被忽略并退回规则清洗，不会报错。
     use_clean_model: bool | None = None
     ##
+    # 用户随本轮消息发的图片（data URI 或裸 base64）。服务端 OCR 后与 query 合并检索。
+    image_base64: str | None = None
     conversation_id: str | None = None# 聊天会话 ID
     memory_enabled: bool = False# 是否启用内存
     ##
@@ -50,6 +52,8 @@ class ChatResponse(BaseModel):
     clean: dict | None = None
     # 数字级 grounding 校验：{ok, numbers, missing}；missing 非空时会追加提示（docs/19）
     grounding: dict | None = None
+    # 图片识别结果：{engine, chars, ms, truncated, text}；未启用/无图时为 None
+    image: dict | None = None
     # 阶段耗时（ms）：prepare / retrieve / rerank / llm / first_token / total
     timings: dict | None = None
     ##

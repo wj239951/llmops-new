@@ -12,6 +12,7 @@ from app.services.prompt_service import PromptService
 from app.services import grounding, query_rewrite
 from app.services.rag_service import RAGService
 from app.services.text_clean import InputCleaner
+from app.services.image_input import extract_image_text, merge_query, public_meta
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -100,12 +101,24 @@ class ChatService:
         # 用户原文保留在 req.query（写库、展示都用它），清洗结果只用于检索与提问。
         clean_query, clean_meta = self._clean_query(req)
 
+        # 图片输入：OCR 提取文字后与清洗后的提问合并，检索与提问都用合并结果
+        image_meta = extract_image_text(getattr(req, "image_base64", None))
+        final_query = clean_query
+        if image_meta.get("text"):
+            final_query = merge_query(image_meta["text"], clean_query)
+
         workflow_reasoning = [
             f"用户问题：{req.query}",
             f"模型提供商：{provider}",
             f"模型名称：{model_name or '默认模型'}",
             "步骤1：读取用户输入。",
             self._clean_note(clean_meta),
+            (
+                f"步骤2b：识别用户图片，提取 {image_meta['chars']} 字"
+                f"（{image_meta['engine']}，{image_meta['ms']} ms），已与提问合并。"
+                if image_meta.get("applied")
+                else "步骤2b：本轮无图片输入。"
+            ),
             "步骤3：加载系统提示词。",
         ]
         if req.prompt_id:
@@ -144,7 +157,8 @@ class ChatService:
             "history": history,
             "clean_query": clean_query,
             "clean_meta": clean_meta,
-            "final_query": clean_query,
+            "image_meta": image_meta,
+            "final_query": final_query,
             "rag_docs": [],
             "rag_status": "off",
             "score_mode": "off",
@@ -443,6 +457,7 @@ class ChatService:
                 "rerank_requested": ctx.get("rerank_requested"),
                 "rerank_available": ctx.get("rerank_available"),
                 "clean": self._clean_public(ctx.get("clean_meta") or {}, ctx.get("clean_query") or ""),
+                "image": public_meta(ctx.get("image_meta")),
                 "rewrite": self._rewrite_public(ctx.get("rewrite_meta")),
                 "grounding": guard,
                 "timings": timings,
@@ -490,6 +505,7 @@ class ChatService:
                     "clean": self._clean_public(
                         ctx.get("clean_meta") or {}, ctx.get("clean_query") or ""
                     ),
+                    "image": public_meta(ctx.get("image_meta")),
                     "rewrite": self._rewrite_public(ctx.get("rewrite_meta")),
                 },
             }
@@ -576,6 +592,7 @@ class ChatService:
                 "rerank_requested": ctx.get("rerank_requested"),
                 "rerank_available": ctx.get("rerank_available"),
                 "clean": self._clean_public(ctx.get("clean_meta") or {}, ctx.get("clean_query") or ""),
+                "image": public_meta(ctx.get("image_meta")),
                 "rewrite": self._rewrite_public(ctx.get("rewrite_meta")),
                 "grounding": guard,
                 "timings": timings,

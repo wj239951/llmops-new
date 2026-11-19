@@ -52,6 +52,21 @@ export interface KnowledgePayload {
   source?: string | null
 }
 
+
+/** 图片识别结果（后端 OCR 提取，未启用/无图时为 null） */
+export interface ImageInfo {
+  /** 识别引擎，目前固定 rapidocr */
+  engine: string
+  /** 提取到的字符数 */
+  chars: number
+  /** 识别耗时（ms） */
+  ms: number
+  /** 是否因超长被截断 */
+  truncated: boolean
+  /** 识别到的文本（最多返回前 500 字） */
+  text: string
+}
+
 /** 聊天请求（对应 ChatRequest） */
 export interface ChatRequestPayload {
   query: string
@@ -68,6 +83,8 @@ export interface ChatRequestPayload {
   use_clean?: boolean | null
   /** 精细清洗：true=本次请求把清洗升级到模型通道（服务端不允许时自动退回规则） */
   use_clean_model?: boolean | null
+  /** 用户随本轮消息发的图片（data URI 或裸 base64），服务端 OCR 后与 query 合并检索 */
+  image_base64?: string | null
   conversation_id?: string | null
   memory_enabled?: boolean
 }
@@ -119,6 +136,8 @@ export interface ChatResponse {
   rerank_available?: boolean | null
   /** 输入清洗结果（未启用/未改动时 applied=false） */
   clean?: CleanInfo | null
+  /** 图片识别结果（未启用/无图时为 null） */
+  image?: ImageInfo | null
   /** 阶段耗时（ms），用于展示“时间花在哪” */
   timings?: PhaseTimings | null
 }
@@ -139,6 +158,7 @@ export interface ChatStreamMeta {
   rerank_requested?: boolean | null
   rerank_available?: boolean | null
   clean?: CleanInfo | null
+  image?: ImageInfo | null
 }
 
 /** SSE 流式聊天的 done 事件（event: done），流结束时一次性给出最终值 */
@@ -159,6 +179,7 @@ export interface ChatStreamDone {
   rerank_requested?: boolean | null
   rerank_available?: boolean | null
   clean?: CleanInfo | null
+  image?: ImageInfo | null
   timings?: PhaseTimings | null
 }
 
