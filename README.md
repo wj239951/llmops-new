@@ -44,6 +44,10 @@
 
 ![用户输入数据流转图](docs/用户输入数据流转图.png)
 
+检索质量评测（183 题阈值标定、消融、题型与延迟）：
+
+![检索评测可视化](docs/检索评测可视化.png)
+
 > 绘图脚本：[docs/draw_arch.py](docs/draw_arch.py)、[docs/draw_sequence.py](docs/draw_sequence.py)（matplotlib，改完直接重跑即可更新）
 
 > 绘图脚本：[docs/draw_arch.py](docs/draw_arch.py)（matplotlib，改完直接重跑即可更新）
