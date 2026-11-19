@@ -247,8 +247,10 @@ class ChatService:
     def _apply_rag(self, db: Session, req: ChatRequest, ctx: dict) -> None:
         """执行 RAG 检索并改写 final_query（无命中时保持原问题）。"""
         workflow_reasoning = ctx["workflow_reasoning"]
-        # 检索与提问都用清洗后的文本；用户原文只用于展示与写库
-        query = ctx.get("clean_query") or req.query
+        # answer_text：给模型看的提问（只用清洗后的用户文本，保持聚焦）
+        # query：拿去检索的文本（含图片识别结果——型号、编号这类实体往往只在图里）
+        answer_text = ctx.get("clean_query") or req.query
+        query = ctx.get("final_query") or answer_text
         if not req.use_rag:
             workflow_reasoning.append("步骤6：未启用 RAG，直接调用模型。")
             return
@@ -288,7 +290,7 @@ class ChatService:
             exact_hit = getattr(rag_docs[0], "match", "vector") == "exact"
             # 闸门勉强过线时标成 weak_hit，不让前端把它当成可靠依据
             ctx["rag_status"] = "hit" if exact_hit or top1 >= threshold + weak_margin else "weak_hit"
-            ctx["final_query"] = self._grounded_prompt(context, query)
+            ctx["final_query"] = self._grounded_prompt(context, answer_text)
             rerank_note = (
                 "（精排请求但服务端不可用，已回退向量）"
                 if rerank_requested and not rerank_available else ""
