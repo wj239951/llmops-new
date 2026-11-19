@@ -1,4 +1,4 @@
-# LLMOps 平台 · 工业知识库 RAG 问答
+﻿# LLMOps 平台 · 工业知识库 RAG 问答
 
 > 一个可本地部署的一站式 LLMOps 平台：**Prompt 管理 + 知识库 RAG + 多模型对话 + 会话记忆 + 调用日志**。
 > 后端 FastAPI，前端 Vue3 + TypeScript，向量检索 Chroma（bge-m3），元数据 MySQL 8。
@@ -39,6 +39,10 @@
 一次提问的完整时序（含实测耗时拆解，LLM 占 95%）：
 
 ![请求时序图](docs/请求时序图.png)
+
+用户输入的数据流转（同一请求里，原文如何一步步变成检索查询与模型上下文）：
+
+![用户输入数据流转图](docs/用户输入数据流转图.png)
 
 > 绘图脚本：[docs/draw_arch.py](docs/draw_arch.py)、[docs/draw_sequence.py](docs/draw_sequence.py)（matplotlib，改完直接重跑即可更新）
 
