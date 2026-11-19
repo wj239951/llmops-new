@@ -242,3 +242,22 @@ def test_options_exposes_clean_model_allowed(client, auth_headers, monkeypatch):
     monkeypatch.setattr(settings, "INPUT_CLEAN_MODEL_ALLOWED", False)
     body = client.get("/api/chat/options", headers=auth_headers).json()
     assert body["clean_model_allowed"] is False
+
+
+# ── 词内分隔符修复（词典闸门）──
+
+def test_merge_split_word_single_char_left():
+    # 单字 + 词，拼起来是词典词 → 去分隔符
+    assert clean_rule("注, 塑机, 怎么操, 作") == "注塑机，怎么操作"
+
+
+def test_merge_split_word_keeps_enumeration():
+    # 两侧都是词 / 都是单字 → 不动，避免把列举项拼成一个词
+    assert clean_rule("苹果，香蕉") == "苹果，香蕉"
+    assert clean_rule("一，二，三") == "一，二，三"
+    assert clean_rule("我，你") == "我，你"
+
+
+def test_merge_split_word_no_dict_hit():
+    # 拼不成词 → 保留分隔符
+    assert text_clean._merge_split_words("某某，啊啊") == "某某，啊啊"

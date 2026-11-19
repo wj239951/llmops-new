@@ -246,6 +246,68 @@ def _normalize_space(text: str) -> str:
     return text.strip()
 
 
+# 词内被逗号/顿号拆开：`注, 塑机`、`怎么操, 作`
+_WORD_SEP_RE = re.compile(r"(?<=[\u4e00-\u9fff])[ \t]*[,，、][ \t]*(?=[\u4e00-\u9fff])")
+_jieba_freq: dict | None = None
+
+
+def _dict_freq() -> dict:
+    """懒加载 jieba 词典（词 -> 频次）；拿不到就退化成空表，调用方直接跳过。"""
+    global _jieba_freq
+    if _jieba_freq is None:
+        try:
+            import jieba
+
+            jieba.dt.initialize()
+            _jieba_freq = jieba.dt.FREQ
+        except Exception:  # 没装 jieba 也不该影响清洗
+            _jieba_freq = {}
+    return _jieba_freq
+
+
+def _merge_split_words(text: str) -> str:
+    """把被逗号/顿号拆开的中文词拼回去（词典闸门，拼不成词就不动）。
+
+    OCR 与聊天转发里常见 `注, 塑机, 怎么操, 作`。标点归一之后它是合法的中文标点，
+    规则层看不出异常；这里只看一种模式：**分隔符两侧一边是单字、另一边是词**，
+    且拼起来确实是词典词，才删掉分隔符。
+
+    这样 `苹果，香蕉`（两侧都是词）、`一，二`（两侧都是单字）都不会被误合并。
+    """
+    freq = _dict_freq()
+    if not freq or not _WORD_SEP_RE.search(text):
+        return text
+
+    out: list[str] = []
+    pos = 0
+    for m in _WORD_SEP_RE.finditer(text):
+        start, end = m.span()
+        # 左侧连续中文
+        left_start = start
+        while left_start > pos and is_cjk(text[left_start - 1]):
+            left_start -= 1
+        left = text[left_start:start]
+        # 右侧连续中文（最多看 4 个字）
+        right_end = end
+        while right_end < len(text) and is_cjk(text[right_end]) and right_end - end < 4:
+            right_end += 1
+        right = text[end:right_end]
+        if not left or not right:
+            continue
+
+        mergeable = False
+        if len(left) == 1 and len(right) >= 2:
+            mergeable = any(freq.get(left + right[:k], 0) > 0 for k in (3, 2, 1) if len(left) + k >= 2)
+        elif len(right) == 1 and len(left) >= 2:
+            mergeable = any(freq.get(left[-k:] + right, 0) > 0 for k in (3, 2, 1) if k + len(right) >= 2)
+
+        if mergeable:
+            out.append(text[pos:start])  # 丢掉分隔符
+            pos = end
+    out.append(text[pos:])
+    return "".join(out)
+
+
 def repair_mojibake_only(text: str) -> str:
     """只做乱码还原（UTF-8 被按单字节编码解码）。
 
@@ -284,6 +346,7 @@ def clean_rule(text: str) -> str:
     text = _join_hard_wraps(text)
     text = _collapse_repeats(text)
     text = _normalize_space(text)
+    text = _merge_split_words(text)
 
     def _restore(m: re.Match) -> str:
         idx = int(m.group(1))
@@ -300,7 +363,10 @@ def clean_model(text: str, url: str, timeout: float) -> str:
     cleaned = data.get("clean")
     if not isinstance(cleaned, str):
         raise ValueError(f"清洗服务返回格式不对：{str(data)[:120]}")
-    return cleaned
+    # 模型对「词被逗号拆开」处理得不稳定（训练规范里没这条），这里用词典兜一层
+    cleaned = _merge_split_words(cleaned)
+    # 模型偶尔在中文标点后留空格，与规则通道对齐
+    return _strip_space_around_cjk_punct(cleaned).strip()
 
 
 class InputCleaner:
