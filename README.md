@@ -36,6 +36,12 @@
 
 ![项目架构图](docs/项目架构图.png)
 
+一次提问的完整时序（含实测耗时拆解，LLM 占 95%）：
+
+![请求时序图](docs/请求时序图.png)
+
+> 绘图脚本：[docs/draw_arch.py](docs/draw_arch.py)、[docs/draw_sequence.py](docs/draw_sequence.py)（matplotlib，改完直接重跑即可更新）
+
 > 绘图脚本：[docs/draw_arch.py](docs/draw_arch.py)（matplotlib，改完直接重跑即可更新）
 > 详细说明见 [docs/22.图片输入接入.md](docs/22.图片输入接入.md) 与 [docs/21.多模态结构蒸馏实验.md](docs/21.多模态结构蒸馏实验.md)
 
